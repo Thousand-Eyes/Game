@@ -2,249 +2,130 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport setup for mobile handling -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 動態賽局樹求解器 V3.3 (觸控優化版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 賽局樹求解器 V3.4.2 (範本生成版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Prevent default browser touch actions to handle gestures manually */
         body { font-family: "Noto Sans TC", sans-serif; overflow: hidden; touch-action: none; background-color: #f8fafc; }
         
-        /* 樹狀結構佈局核心 */
-        .tree { display: flex; justify-content: center; padding-top: 50px; padding-bottom: 300px; padding-left: 100px; padding-right: 100px; transform-origin: center top; }
+        .tree { display: flex; justify-content: center; padding: 50px 100px 300px 100px; transform-origin: center top; }
         .tree-node-container { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 10px; } 
         .children-container { display: flex; flex-direction: row; justify-content: center; margin-top: 60px; }
 
-        /* Node Wrapper: Groups Label and Box for unified movement */
-        .node-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 10;
-            /* Transformations applied here via JS */
-        }
-
-        /* 節點樣式 */
+        .node-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 10; }
         .node-box {
-            transition: box-shadow 0.3s ease, background-color 0.3s ease;
             background: white;
             position: relative;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             cursor: grab; 
-            touch-action: none; /* Important for node dragging */
+            touch-action: none;
+            transition: box-shadow 0.3s ease;
         }
-        .node-box:active {
-            cursor: grabbing;
-        }
-        .node-decision {
-            border: 3px solid #3b82f6;
-            border-radius: 9999px;
-            padding: 8px 16px;
-            min-width: 90px;
-            text-align: center;
-        }
-        .node-terminal {
-            border: 3px solid #ef4444;
-            border-radius: 12px;
-            padding: 8px;
-            min-width: 100px;
-        }
+        .node-box:active { cursor: grabbing; }
+        .node-decision { border: 3px solid #3b82f6; border-radius: 9999px; padding: 8px 16px; min-width: 90px; text-align: center; }
+        .node-terminal { border: 3px solid #ef4444; border-radius: 12px; padding: 8px; min-width: 100px; }
         
-        /* 高亮樣式 */
-        .highlight-equilibrium {
-            box-shadow: 0 0 25px rgba(34, 197, 94, 0.9);
-            border-color: #22c55e !important;
-            background-color: #f0fdf4;
-            font-weight: bold;
-        }
+        .highlight-equilibrium { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); border-color: #22c55e !important; background-color: #f0fdf4; font-weight: bold; }
 
-        /* 輸入框樣式 */
         input.dynamic-width {
             background: rgba(255, 255, 255, 0.95);
             text-align: center;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             outline: none;
-            transition: all 0.2s;
             min-width: 50px;
             padding: 2px 6px;
             font-size: 11px;
-            color: #475569;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             margin-bottom: 4px;
-            pointer-events: auto; /* Ensure inputs are clickable */
-        }
-        input.dynamic-width:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-            z-index: 20;
         }
 
-        input.editable-payoff {
-            background: transparent;
-            text-align: center;
-            border: none;
-            border-bottom: 1px dashed #94a3b8;
-            outline: none;
-            width: 100%;
-            transition: border 0.2s;
-        }
-        input.editable-payoff:focus { border-bottom: 2px solid #3b82f6; }
-
-        /* SVG 連線層 */
-        #svg-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 0;
-        }
-        path.connection {
-            fill: none; stroke: #cbd5e1; stroke-width: 2;
-        }
-        
-        path.equilibrium-path {
-            stroke: #22c55e; 
-            stroke-width: 5;
-            stroke-dasharray: 15;
-            animation: flow 1s linear infinite;
-            z-index: 5;
-        }
-
-        path.off-path-optimal {
-            stroke: #86efac; 
-            stroke-width: 3;
-            stroke-dasharray: 5, 5; 
-        }
-
+        #svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        path.connection { fill: none; stroke: #cbd5e1; stroke-width: 2; }
+        path.equilibrium-path { stroke: #22c55e; stroke-width: 5; stroke-dasharray: 15; animation: flow 1s linear infinite; z-index: 5; }
+        path.off-path-optimal { stroke: #86efac; stroke-width: 3; stroke-dasharray: 5, 5; }
         @keyframes flow { to { stroke-dashoffset: -30; } }
         
-        /* UI Elements */
-        .modal-overlay {
-            background-color: rgba(0,0,0,0.5);
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; justify-content: center; align-items: center; z-index: 50;
-            padding: 1rem;
-        }
+        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; z-index: 50; padding: 1rem; }
         .modal-active { display: flex; }
-
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 3px solid #3b82f6;
-            width: 20px; height: 20px;
-            animation: spin 1s linear infinite;
-        }
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Analysis Result Styling */
-        .analysis-text {
-            white-space: pre-wrap;
-            line-height: 1.6;
-            font-size: 0.95rem;
-            color: #334155;
-        }
-        .analysis-text strong { color: #1e293b; font-weight: 700; }
-        .analysis-text h3 { font-size: 1.1rem; font-weight: 800; color: #4f46e5; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .analysis-text h3 { font-size: 1.1rem; font-weight: 800; color: #4f46e5; margin-top: 1rem; margin-bottom: 0.5rem; border-left: 4px solid #4f46e5; padding-left: 8px; }
+        .analysis-text p { margin-bottom: 0.75rem; line-height: 1.6; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-slate-800 bg-slate-50">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 relative shrink-0">
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 shrink-0">
         <div class="flex items-center gap-3 mb-3 lg:mb-0 w-full lg:w-auto justify-center lg:justify-start">
-            <div class="p-2 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg text-white shadow-md flex-shrink-0">
+            <div class="p-2 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-lg text-white shadow-md flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5a2.5 2.5 0 0 0-2.5 2.5H5a4 5 0 0 0 0 9h6a4 5 0 0 0 0-9h-1a2.5 2.5 0 0 0-2.5-2.5z"/></svg>
             </div>
             <div>
-                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-violet-600 text-[10px] md:text-xs px-1 border border-violet-200 rounded align-middle">V3.3</span></h1>
-                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">觸控優化 | 自動跟隨 | 策略分析</p>
+                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-blue-600 text-[10px] md:text-xs px-1 border border-blue-200 rounded align-middle">V3.4.2</span></h1>
+                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">範本生成 | 自動縮放與拖曳 | 深度策略解析</p>
             </div>
         </div>
 
         <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto justify-center">
-            <button onclick="openAiModal()" class="px-3 py-2 text-sm font-bold text-white bg-violet-600 rounded-full shadow hover:bg-violet-700 transition-all flex items-center justify-center gap-1 border border-violet-500">
+            <button onclick="openAiModal()" class="px-3 py-2 text-sm font-bold text-white bg-indigo-600 rounded-full shadow hover:bg-indigo-700 transition-all flex items-center justify-center gap-1">
                 <span>🤖 AI 生成</span>
             </button>
             
-            <button onclick="analyzeGameWithAI()" class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1 border border-amber-400">
+            <button onclick="analyzeGameWithAI()" class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1">
                 <span>✨ 策略分析</span>
             </button>
 
-            <button onclick="openSettings()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1">
+            <button onclick="openSettings()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
                 設定
             </button>
             
-            <button onclick="saveGame()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1">
+            <button onclick="saveGame()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
                 儲存
             </button>
-            <label class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1 cursor-pointer">
+            
+            <label class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1 cursor-pointer">
                 匯入
                 <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importGame(this)">
             </label>
 
-            <button onclick="solveGame()" class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 transition-colors flex items-center justify-center gap-1">
-                計算最佳解
+            <button onclick="solveGame()" class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 flex items-center justify-center gap-1">
+                計算路徑
             </button>
         </div>
     </header>
 
     <!-- Main Canvas -->
-    <main class="flex-1 relative overflow-hidden bg-slate-50 flex flex-col">
-        <!-- Canvas Container with Event Listeners -->
-        <div id="canvas-container" class="canvas-area w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
+    <main class="flex-1 relative overflow-hidden bg-slate-50">
+        <div id="canvas-container" class="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
             <svg id="svg-layer"></svg>
             <div id="tree-root" class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
                 <!-- Tree Injected Here -->
             </div>
         </div>
 
-        <!-- Zoom Controls -->
         <div class="absolute bottom-6 right-6 z-20 flex gap-2">
-             <button onclick="manualZoom(-0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">-</button>
-             <button onclick="resetZoom()" class="px-3 h-10 md:h-8 bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 flex items-center">100%</button>
-             <button onclick="manualZoom(0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">+</button>
+             <button onclick="manualZoom(-0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">-</button>
+             <button onclick="resetZoom()" class="px-3 h-10 bg-white rounded-full shadow border border-slate-200 text-xs font-bold text-slate-600 flex items-center">100%</button>
+             <button onclick="manualZoom(0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">+</button>
         </div>
     </main>
 
     <!-- AI Generation Modal -->
     <div id="ai-modal" class="modal-overlay">
-        <div class="bg-white rounded-xl shadow-2xl p-4 md:p-6 w-[500px] max-w-full max-h-[90vh] overflow-y-auto m-4 border-t-4 border-violet-600 flex flex-col">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-[500px] max-w-full m-4 border-t-4 border-indigo-600">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <span class="text-2xl">🤖</span> AI 賽局分析師
-                </h2>
-                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600 p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤖 AI 賽局建模</h2>
+                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             </div>
-
-            <div class="space-y-4 flex-1">
-                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <label class="block text-xs font-bold text-slate-500 mb-1">Google Gemini API Key</label>
-                    <input type="password" id="ai-api-key" placeholder="貼上 Key" class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:border-violet-500">
-                    <p class="text-[10px] text-slate-400 mt-1">
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-violet-600 underline">取得免費 Key</a>
-                    </p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">分析模型</label>
-                    <select id="ai-model-select" class="w-full px-3 py-2 border border-slate-300 rounded text-sm bg-white focus:outline-none focus:border-violet-500">
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (快速)</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (精確)</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">情境描述</label>
-                    <textarea id="ai-prompt" rows="5" placeholder="例如：我不想配合主管貪瀆，想以家庭因素請調..." class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:border-violet-500 resize-none"></textarea>
-                </div>
-
-                <button id="ai-generate-btn" onclick="generateGameFromAI()" class="w-full py-3 bg-violet-600 text-white font-bold rounded-lg hover:bg-violet-700 transition-colors flex justify-center items-center gap-2">
-                    <span id="ai-btn-text">開始分析</span>
+            <div class="space-y-4">
+                <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded">本版本已整合環境金鑰，您無需輸入 API Key 即可直接使用。</p>
+                <textarea id="ai-prompt" rows="6" placeholder="請描述情境... 例如：我是外包商，客戶突然要求縮短工期但不加錢，若我拒絕可能會失去未來訂單..." class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+                <button id="ai-generate-btn" onclick="generateGameFromAI()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
+                    <span id="ai-btn-text">開始生成賽局</span>
                     <div id="ai-spinner" class="loader hidden"></div>
                 </button>
-                
                 <p id="ai-error-msg" class="text-xs text-red-500 text-center hidden"></p>
             </div>
         </div>
@@ -252,56 +133,30 @@
 
     <!-- Analysis Result Modal -->
     <div id="analysis-modal" class="modal-overlay">
-        <div class="bg-white rounded-xl shadow-2xl p-4 md:p-6 w-[600px] max-w-full max-h-[90vh] overflow-y-auto m-4 border-t-4 border-amber-500 flex flex-col">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-w-full max-h-[85vh] m-4 border-t-4 border-amber-500 flex flex-col">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <span class="text-2xl">✨</span> AI 策略分析報告
-                </h2>
-                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600 p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ AI 策略解析報告</h2>
+                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             </div>
-            
-            <div id="analysis-content" class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm">
-                <!-- Content will be injected here -->
-            </div>
-            
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeAnalysisModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300 transition-colors">
-                    關閉
-                </button>
-            </div>
+            <div id="analysis-content" class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm"></div>
+            <div class="mt-4 flex justify-end"><button onclick="closeAnalysisModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">關閉報告</button></div>
         </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-96 max-w-full m-4">
-            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></path></svg>
-                賽局玩家設定
-            </h2>
-            
+            <h2 class="text-xl font-bold text-slate-800 mb-4">賽局設定</h2>
             <div class="mb-4">
                 <label class="block text-sm font-bold text-slate-600 mb-2">玩家數量</label>
                 <div class="flex items-center gap-3">
-                    <button onclick="changePlayerCount(-1)" class="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">-</button>
-                    <span id="player-count-display" class="text-xl font-bold text-blue-600 w-8 text-center">2</span>
-                    <button onclick="changePlayerCount(1)" class="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">+</button>
+                    <button onclick="changePlayerCount(-1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">-</button>
+                    <span id="player-count-display" class="text-xl font-bold text-indigo-600 w-8 text-center">2</span>
+                    <button onclick="changePlayerCount(1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">+</button>
                 </div>
             </div>
-
-            <div class="mb-6">
-                <label class="block text-sm font-bold text-slate-600 mb-2">玩家名稱</label>
-                <div id="player-names-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    <!-- Dynamic Inputs -->
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button onclick="closeSettings()" class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">取消</button>
-                <button onclick="applySettings()" class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700">套用</button>
-            </div>
+            <div id="player-names-list" class="space-y-2 max-h-48 overflow-y-auto mb-6"></div>
+            <div class="flex justify-end gap-2 border-t pt-4"><button onclick="closeSettings()" class="px-4 py-2 text-sm text-slate-500">取消</button><button onclick="applySettings()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded">儲存套用</button></div>
         </div>
     </div>
 
@@ -309,746 +164,235 @@
 
     <!-- JS Logic -->
     <script>
-        const CONFIG = {
-            colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] 
-        };
-
-        let gameConfig = {
-            playerCount: 2,
-            playerNames: ["玩家 1", "玩家 2"]
-        };
-
-        class Node {
-            constructor(id, parentId = null) {
-                this.id = id;
-                this.parentId = parentId;
-                this.playerIdx = 0; 
-                this.children = [];
-                this.payoffs = Array(gameConfig.playerCount).fill(0);
-                this.bestChildId = null; 
-                this.description = ""; 
-                this.isOnEquilibriumPath = false;
-                this.dx = 0; 
-                this.dy = 0;
+        const apiKey = ""; 
+        const modelName = "gemini-2.5-flash-preview-09-2025";
+        
+        async function callGeminiAPI(payload) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (response.ok) { const data = await response.json(); return data.candidates?.[0]?.content?.parts?.[0]?.text; }
+                    if (response.status !== 429 && response.status !== 503) { const err = await response.json(); throw new Error(err.error?.message || "API Error"); }
+                } catch (err) { if (i === 4) throw err; }
+                await new Promise(res => setTimeout(res, delay)); delay *= 2;
             }
         }
 
-        let treeData = null;
-        let scale = 1;
-        // Panning State
-        let isPan = false;
-        let panStartX, panStartY;
-        let scrollLeft, scrollTop;
-        
-        // Node Dragging State
-        let draggingNodeId = null;
-        let nodeDragStartX, nodeDragStartY;
-        let initialNodeDx, initialNodeDy;
-
-        // Pinch Zoom State
-        let initialPinchDistance = 0;
-        let initialScale = 1;
-
-        // --- Initialization ---
-        function init() {
-            treeData = new Node('root');
-            treeData.playerIdx = 0; 
-            addChild(treeData);
-            addChild(treeData);
-            renderTree();
-            setupEventListeners();
+        const CONFIG = { colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] };
+        let gameConfig = { playerCount: 2, playerNames: ["玩家 1", "玩家 2"] };
+        class Node {
+            constructor(id, parentId = null) {
+                this.id = id; this.parentId = parentId; this.playerIdx = 0; this.children = [];
+                this.payoffs = Array(gameConfig.playerCount).fill(0); this.bestChildId = null; 
+                this.description = ""; this.isOnEquilibriumPath = false; this.dx = 0; this.dy = 0;
+            }
         }
+        let treeData = null, scale = 1, isPan = false, panStartX, panStartY, scrollLeft, scrollTop, draggingNodeId = null, nodeDragStartX, nodeDragStartY, initialNodeDx, initialNodeDy, initialPinchDistance = 0, initialScale = 1;
+
+        function init() { treeData = new Node('root'); addChild(treeData); addChild(treeData); renderTree(); setupEventListeners(); }
 
         function setupEventListeners() {
             const container = document.getElementById('canvas-container');
-            
-            // Mouse Events
             container.addEventListener('mousedown', onMouseDown);
             window.addEventListener('mousemove', onMouseMove);
             window.addEventListener('mouseup', onMouseUp);
             container.addEventListener('wheel', onWheel, { passive: false });
-
-            // Touch Events
             container.addEventListener('touchstart', onTouchStart, { passive: false });
             container.addEventListener('touchmove', onTouchMove, { passive: false });
             container.addEventListener('touchend', onTouchEnd);
         }
 
-        // --- Event Handlers ---
-
         function onMouseDown(e) {
-            // Check if clicking interaction elements
             if (e.target.closest('button') || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
-
-            // Check if clicking a node (for dragging node)
             const nodeWrapper = e.target.closest('.node-wrapper');
-            if (nodeWrapper) {
-                startNodeDrag(nodeWrapper.id.replace('node-wrapper-', ''), e.clientX, e.clientY);
-                return;
-            }
-
-            // Otherwise Pan Canvas
-            isPan = true;
-            const container = document.getElementById('canvas-container');
-            container.classList.add('cursor-grabbing');
-            panStartX = e.clientX;
-            panStartY = e.clientY;
-            scrollLeft = container.scrollLeft;
-            scrollTop = container.scrollTop;
+            if (nodeWrapper) { startNodeDrag(nodeWrapper.id.replace('node-wrapper-', ''), e.clientX, e.clientY); return; }
+            isPan = true; panStartX = e.clientX; panStartY = e.clientY; scrollLeft = document.getElementById('canvas-container').scrollLeft; scrollTop = document.getElementById('canvas-container').scrollTop;
         }
-
         function onMouseMove(e) {
-            if (draggingNodeId) {
-                e.preventDefault();
-                updateNodeDrag(e.clientX, e.clientY);
-            } else if (isPan) {
-                e.preventDefault();
-                const container = document.getElementById('canvas-container');
-                const x = e.clientX - panStartX;
-                const y = e.clientY - panStartY;
-                container.scrollLeft = scrollLeft - x;
-                container.scrollTop = scrollTop - y;
-            }
+            if (draggingNodeId) { e.preventDefault(); updateNodeDrag(e.clientX, e.clientY); }
+            else if (isPan) { const c = document.getElementById('canvas-container'); c.scrollLeft = scrollLeft - (e.clientX - panStartX); c.scrollTop = scrollTop - (e.clientY - panStartY); }
         }
-
-        function onMouseUp() {
-            isPan = false;
-            draggingNodeId = null;
-            document.getElementById('canvas-container').classList.remove('cursor-grabbing');
-        }
-
-        function onWheel(e) {
-            if (e.ctrlKey || e.metaKey || !e.shiftKey) { // Allow normal scroll if shift held, else zoom
-                e.preventDefault();
-                const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                manualZoom(delta);
-            }
-        }
-
-        // --- Touch Logic (Pan, Zoom, Drag) ---
-
+        function onMouseUp() { isPan = false; draggingNodeId = null; }
+        function onWheel(e) { e.preventDefault(); manualZoom(e.deltaY > 0 ? -0.1 : 0.1); }
         function onTouchStart(e) {
-            if (e.target.closest('button') || e.target.tagName === 'SELECT') {
-                e.stopPropagation(); // Allow native interaction
-                return; 
-            }
-            
-            // Allow inputs to focus but prevent map drag if touching input
-            if (e.target.tagName === 'INPUT') {
-                return; 
-            }
-
-            e.preventDefault(); // Prevent default scroll
-
-            if (e.touches.length === 2) {
-                // Pinch Zoom Start
-                initialPinchDistance = getDistance(e.touches[0], e.touches[1]);
-                initialScale = scale;
-            } else if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                const nodeWrapper = e.target.closest('.node-wrapper');
-                
-                if (nodeWrapper) {
-                    startNodeDrag(nodeWrapper.id.replace('node-wrapper-', ''), touch.clientX, touch.clientY);
-                } else {
-                    // Pan Start
-                    isPan = true;
-                    const container = document.getElementById('canvas-container');
-                    panStartX = touch.clientX;
-                    panStartY = touch.clientY;
-                    scrollLeft = container.scrollLeft;
-                    scrollTop = container.scrollTop;
-                }
-            }
-        }
-
-        function onTouchMove(e) {
+            if (e.target.closest('button') || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
             e.preventDefault();
-            if (e.touches.length === 2) {
-                // Pinch Zooming
-                const currentDistance = getDistance(e.touches[0], e.touches[1]);
-                const diff = currentDistance - initialPinchDistance;
-                // Sensitivity factor
-                const newScale = Math.max(0.3, Math.min(2.5, initialScale + (diff * 0.005)));
-                scale = newScale;
-                applyZoom();
-            } else if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                if (draggingNodeId) {
-                    updateNodeDrag(touch.clientX, touch.clientY);
-                } else if (isPan) {
-                    const container = document.getElementById('canvas-container');
-                    const x = touch.clientX - panStartX;
-                    const y = touch.clientY - panStartY;
-                    container.scrollLeft = scrollLeft - x;
-                    container.scrollTop = scrollTop - y;
-                }
-            }
+            if (e.touches.length === 2) { initialPinchDistance = getDistance(e.touches[0], e.touches[1]); initialScale = scale; }
+            else { const touch = e.touches[0]; const nw = e.target.closest('.node-wrapper'); if (nw) startNodeDrag(nw.id.replace('node-wrapper-', ''), touch.clientX, touch.clientY); else { isPan = true; panStartX = touch.clientX; panStartY = touch.clientY; scrollLeft = document.getElementById('canvas-container').scrollLeft; scrollTop = document.getElementById('canvas-container').scrollTop; } }
         }
-
-        function onTouchEnd(e) {
-            isPan = false;
-            draggingNodeId = null;
-            if (e.touches.length < 2) {
-                initialPinchDistance = 0;
-            }
+        function onTouchMove(e) {
+            if (e.touches.length === 2) { const dist = getDistance(e.touches[0], e.touches[1]); scale = Math.max(0.3, Math.min(2.5, initialScale + (dist - initialPinchDistance) * 0.005)); applyZoom(); }
+            else if (draggingNodeId) updateNodeDrag(e.touches[0].clientX, e.touches[0].clientY);
+            else if (isPan) { const c = document.getElementById('canvas-container'); c.scrollLeft = scrollLeft - (e.touches[0].clientX - panStartX); c.scrollTop = scrollTop - (e.touches[0].clientY - panStartY); }
         }
-
-        function getDistance(t1, t2) {
-            return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
-        }
-
-        // --- Node Operations ---
-
-        function startNodeDrag(id, clientX, clientY) {
-            draggingNodeId = id;
-            nodeDragStartX = clientX;
-            nodeDragStartY = clientY;
-            const node = findNode(treeData, id);
-            initialNodeDx = node.dx || 0;
-            initialNodeDy = node.dy || 0;
-        }
-
-        function updateNodeDrag(clientX, clientY) {
-            // Calculate delta adjusted for scale
-            const dx = (clientX - nodeDragStartX) / scale;
-            const dy = (clientY - nodeDragStartY) / scale;
-            
-            const node = findNode(treeData, draggingNodeId);
-            node.dx = initialNodeDx + dx;
-            node.dy = initialNodeDy + dy;
-
-            // Apply directly for smoothness
-            const el = document.getElementById(`node-wrapper-${draggingNodeId}`);
-            if (el) el.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
-            
-            requestAnimationFrame(drawConnections);
-        }
-
-        // --- Zoom Logic ---
-
-        function manualZoom(delta) {
-            scale = Math.max(0.3, Math.min(2.5, scale + delta));
-            applyZoom();
-        }
-
-        function resetZoom() {
-            scale = 1;
-            applyZoom();
-        }
-
-        function applyZoom() {
-            document.getElementById('tree-root').style.transform = `scale(${scale})`;
-            // Re-draw connections because coordinates change visually
-            requestAnimationFrame(drawConnections);
-        }
-
-        // --- AI Agent Logic (Shared API Caller) ---
-        function openAiModal() {
-            document.getElementById('ai-modal').classList.add('modal-active');
-            const savedKey = localStorage.getItem('gemini_api_key');
-            if(savedKey) document.getElementById('ai-api-key').value = savedKey;
-        }
-
-        function closeAiModal() {
-            document.getElementById('ai-modal').classList.remove('modal-active');
-            document.getElementById('ai-error-msg').classList.add('hidden');
-        }
-
-        function closeAnalysisModal() {
-            document.getElementById('analysis-modal').classList.remove('modal-active');
-        }
-
-        // V3.2: Generic API Caller
-        async function callGeminiAPI(prompt, systemPrompt = "") {
-            const apiKey = document.getElementById('ai-api-key').value.trim() || localStorage.getItem('gemini_api_key');
-            if (!apiKey) {
-                alert("請先在 AI 生成設定中輸入您的 API Key");
-                openAiModal();
-                throw new Error("Missing API Key");
-            }
-            
-            const model = document.getElementById('ai-model-select').value || "gemini-1.5-flash";
-            
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: systemPrompt + "\n\n" + prompt }]
-                    }]
-                })
-            });
-
-            if (!response.ok) {
-                let errorText = response.statusText;
-                try { const err = await response.json(); if(err.error) errorText = err.error.message; } catch(e){}
-                throw new Error(`API Error (${response.status}): ${errorText}`);
-            }
-
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
-        }
-
-        // V3.2: Strategy Analysis Function
-        async function analyzeGameWithAI() {
-            const contentDiv = document.getElementById('analysis-content');
-            document.getElementById('analysis-modal').classList.add('modal-active');
-            contentDiv.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-3"><div class="loader"></div><p class="text-slate-500">正在分析戰略...</p></div>';
-
-            solveGame(); // Ensure path is calculated
-
-            const systemPrompt = `你是一位精通賽局理論的戰略顧問。請分析以下 JSON 格式的賽局樹資料（包含納許均衡路徑）。
-            請使用繁體中文，以專業但易懂的語氣，輸出以下內容（請使用 Markdown 格式加強排版）：
-            1. **局勢總結**：一句話說明這個賽局的核心衝突與結果。
-            2. **最佳路徑分析**：解釋為什麼這是理性的最佳選擇 (Nash Equilibrium)，雙方在想什麼？
-            3. **風險提示**：如果對手是非理性的，或者偏離了最佳路徑，會有什麼風險？
-            4. **致勝建議**：給予起始玩家 (Player 0) 具體的行動建議或談判籌碼。`;
-
-            try {
-                // Simplify tree for token limit if needed, but usually fine for simple games
-                const gameJson = JSON.stringify({ config: gameConfig, tree: treeData });
-                const result = await callGeminiAPI("請分析此賽局數據：\n" + gameJson, systemPrompt);
-                
-                // Simple formatter
-                let formatted = result
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/^#+\s+(.*$)/gm, '<h3>$1</h3>')
-                    .replace(/\n/g, '<br>');
-                
-                contentDiv.innerHTML = formatted;
-            } catch (err) {
-                if(err.message !== "Missing API Key") {
-                    contentDiv.innerHTML = `<p class="text-red-500">分析失敗: ${err.message}</p>`;
-                } else {
-                    document.getElementById('analysis-modal').classList.remove('modal-active');
-                }
-            }
-        }
+        function onTouchEnd() { isPan = false; draggingNodeId = null; }
+        function getDistance(t1, t2) { return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2)); }
+        function startNodeDrag(id, x, y) { draggingNodeId = id; nodeDragStartX = x; nodeDragStartY = y; const n = findNode(treeData, id); initialNodeDx = n.dx; initialNodeDy = n.dy; }
+        function updateNodeDrag(x, y) { const n = findNode(treeData, draggingNodeId); n.dx = initialNodeDx + (x - nodeDragStartX)/scale; n.dy = initialNodeDy + (y - nodeDragStartY)/scale; document.getElementById(`node-wrapper-${draggingNodeId}`).style.transform = `translate(${n.dx}px, ${n.dy}px)`; requestAnimationFrame(drawConnections); }
+        function manualZoom(d) { scale = Math.max(0.3, Math.min(2.5, scale + d)); applyZoom(); }
+        function resetZoom() { scale = 1; applyZoom(); }
+        function applyZoom() { document.getElementById('tree-root').style.transform = `scale(${scale})`; requestAnimationFrame(drawConnections); }
 
         async function generateGameFromAI() {
-            const promptText = document.getElementById('ai-prompt').value.trim();
-            const btnText = document.getElementById('ai-btn-text');
-            const spinner = document.getElementById('ai-spinner');
-            const errorMsg = document.getElementById('ai-error-msg');
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            if (!prompt) return;
+            const btn = document.getElementById('ai-generate-btn'); const spinner = document.getElementById('ai-spinner'); const error = document.getElementById('ai-error-msg');
+            btn.disabled = true; spinner.classList.remove('hidden'); error.classList.add('hidden');
+            
+            // SCHEMA LOCKING START: Using ChangeLife.json as the one-shot template
+            const exampleSchema = {
+                "version": "3.4.2",
+                "timestamp": "ISO_DATE",
+                "config": {
+                    "playerCount": 2,
+                    "playerNames": ["P1 (Role)", "P2 (Role)"]
+                },
+                "tree": {
+                    "id": "root",
+                    "parentId": null,
+                    "playerIdx": 0,
+                    "description": "Situation description",
+                    "payoffs": [0, 0],
+                    "children": [
+                        {
+                            "id": "L1_ActionA",
+                            "parentId": "root",
+                            "playerIdx": 1,
+                            "description": "Action A description",
+                            "payoffs": [10, -5],
+                            "children": []
+                        }
+                    ]
+                }
+            };
 
-            if (!promptText) {
-                errorMsg.textContent = "請輸入賽局情境描述";
-                errorMsg.classList.remove('hidden');
-                return;
-            }
-
-            // Save key if entered manually
-            const keyInput = document.getElementById('ai-api-key').value.trim();
-            if(keyInput) localStorage.setItem('gemini_api_key', keyInput);
-
-            btnText.textContent = "AI 分析中...";
-            spinner.classList.remove('hidden');
-            errorMsg.classList.add('hidden');
-            document.getElementById('ai-generate-btn').disabled = true;
-
-            const systemPrompt = `
-                You are a Game Theory Expert. Analyze the user's scenario and output a valid JSON representing the game tree.
-                RULES:
-                1. Output ONLY valid JSON. No markdown formatting.
-                2. Schema: {"config": {"playerCount": number, "playerNames": []}, "tree": {"id": "root", "playerIdx": 0, "payoffs": [], "children": []}}
-                3. "playerIdx" 0 based.
-                4. Create reasonable structure.
-            `;
+            const sys = `You are a Game Theory Expert. Analyze the user scenario and output ONLY valid JSON matching this exact schema structure:
+            ${JSON.stringify(exampleSchema)}
+            
+            RULES:
+            1. Output JSON ONLY. No markdown blocks.
+            2. Follow the nesting structure of 'children' for the game tree.
+            3. 'playerIdx' is 0-based.
+            4. 'payoffs' must be an array of numbers.
+            5. Create meaningful depth (at least 3 levels recommended for interesting games).`;
+            // SCHEMA LOCKING END
 
             try {
-                const aiText = await callGeminiAPI("User Scenario:\n" + promptText, systemPrompt);
-                const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const gameData = JSON.parse(cleanJson);
+                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nUser Scenario: " + prompt }] }] });
+                const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const data = JSON.parse(clean); gameConfig = data.config; treeData = restoreNodePrototype(data.tree); solveGame(); closeAiModal();
+            } catch (err) { error.textContent = "生成失敗: " + err.message; error.classList.remove('hidden'); }
+            finally { btn.disabled = false; spinner.classList.add('hidden'); }
+        }
 
-                if (!gameData.tree || !gameData.config) throw new Error("Data format invalid");
+        async function analyzeGameWithAI() {
+            const modal = document.getElementById('analysis-modal'); const content = document.getElementById('analysis-content');
+            modal.classList.add('modal-active'); content.innerHTML = '<div class="flex justify-center items-center h-40"><div class="loader"></div><p class="ml-2 text-slate-500">大師正在推演局勢...</p></div>';
+            solveGame();
+            const sys = `你是一位精通賽局理論的軍師。分析此 JSON 格式賽局（含納許均衡路徑）。使用繁體中文 Markdown 輸出：
+            1. **局勢總結**
+            2. **均衡路徑分析** (為何這是理性選擇)
+            3. **異常風險** (若對手不按牌理出牌)
+            4. **致勝建議**`;
+            try {
+                const json = JSON.stringify({ config: gameConfig, tree: treeData });
+                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nGame Data: " + json }] }] });
+                content.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^#+\s+(.*$)/gm, '<h3>$1</h3>').replace(/\n/g, '<br>');
+            } catch (err) { content.innerHTML = `<p class="text-red-500">分析失敗: ${err.message}</p>`; }
+        }
 
-                gameConfig = gameData.config;
-                treeData = restoreNodePrototype(gameData.tree);
-                
-                solveGame();
-                closeAiModal();
-                alert("AI 生成成功！");
+        function findNode(n, id) { if (n.id === id) return n; for (let c of n.children) { let f = findNode(c, id); if (f) return f; } return null; }
+        function restoreNodePrototype(n) { n.isOnEquilibriumPath = false; if (n.dx === undefined) n.dx = 0; if (n.dy === undefined) n.dy = 0; if (n.children) n.children.forEach(restoreNodePrototype); if (n.payoffs.length !== gameConfig.playerCount) { const p = Array(gameConfig.playerCount).fill(0); n.payoffs.forEach((v, i) => { if (i < p.length) p[i] = v; }); n.payoffs = p; } return n; }
+        function solveGame() { clearSol(treeData); backwardInduction(treeData); tracePath(treeData); renderTree(); }
+        function clearSol(n) { n.bestChildId = null; n.isOnEquilibriumPath = false; n.children.forEach(clearSol); }
+        function backwardInduction(n) { if (n.children.length === 0) return [...n.payoffs]; let bestV = -Infinity, bestP = null, bestId = null, idx = n.playerIdx; for (let c of n.children) { let res = backwardInduction(c); if (res[idx] > bestV) { bestV = res[idx]; bestP = res; bestId = c.id; } else if (bestV === -Infinity) { bestV = res[idx]; bestP = res; bestId = c.id; } } n.bestChildId = bestId; return bestP; }
+        function tracePath(n) { n.isOnEquilibriumPath = true; if (n.bestChildId) { let c = n.children.find(x => x.id === n.bestChildId); if (c) tracePath(c); } }
+        function addChild(p) { const id = 'n-' + Math.random().toString(36).substr(2, 9); const n = new Node(id, p.id); n.description = `選項 ${p.children.length + 1}`; n.playerIdx = (p.playerIdx + 1) % gameConfig.playerCount; p.children.push(n); renderTree(); }
+        function removeNode(id, pid) { if (!pid) return; const p = findNode(treeData, pid); p.children = p.children.filter(c => c.id !== id); renderTree(); }
+        function updateNodeData(id, t, v, i = 0) { const n = findNode(treeData, id); if (!n) return; if (t === 'desc') n.description = v; else if (t === 'playerIdx') n.playerIdx = parseInt(v); else if (t === 'payoff') n.payoffs[i] = parseFloat(v) || 0; if (t !== 'desc') { clearSol(treeData); renderTree(); } }
+        function adjustWidth(input) { const m = document.getElementById('text-measurer'); m.textContent = input.value || input.placeholder; input.style.width = Math.max(50, m.offsetWidth + 12) + 'px'; }
 
-            } catch (err) {
-                errorMsg.textContent = "Error: " + err.message;
-                errorMsg.classList.remove('hidden');
-            } finally {
-                btnText.textContent = "開始分析";
-                spinner.classList.add('hidden');
-                document.getElementById('ai-generate-btn').disabled = false;
+        function renderTree() { const root = document.getElementById('tree-root'); root.innerHTML = ''; root.appendChild(buildNodeDOM(treeData)); requestAnimationFrame(drawConnections); }
+        function buildNodeDOM(node) {
+            const container = document.createElement('div'); container.className = 'tree-node-container'; container.id = `node-container-${node.id}`;
+            const wrap = document.createElement('div'); wrap.className = 'node-wrapper'; wrap.id = `node-wrapper-${node.id}`; wrap.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
+            wrap.onmousedown = (e) => startNodeDrag(node.id, e.clientX, e.clientY); wrap.ontouchstart = (e) => { if(e.touches.length===1) startNodeDrag(node.id, e.touches[0].clientX, e.touches[0].clientY); };
+            
+            if (node.parentId) { const lbl = document.createElement('input'); lbl.value = node.description; lbl.className = "dynamic-width"; setTimeout(() => adjustWidth(lbl), 0); lbl.oninput = (e) => { adjustWidth(e.target); updateNodeData(node.id, 'desc', e.target.value); }; lbl.onmousedown = (e) => e.stopPropagation(); lbl.ontouchstart = (e) => e.stopPropagation(); wrap.appendChild(lbl); }
+            const box = document.createElement('div'); box.className = 'node-box ' + (node.children.length === 0 ? 'node-terminal ' : 'node-decision ') + (node.isOnEquilibriumPath ? 'highlight-equilibrium' : ''); box.id = `node-visual-${node.id}`;
+            
+            if (node.children.length > 0) {
+                const color = CONFIG.colors[node.playerIdx % CONFIG.colors.length];
+                let opts = ''; gameConfig.playerNames.forEach((name, i) => opts += `<option value="${i}" ${node.playerIdx === i ? 'selected' : ''}>${name}</option>`);
+                box.style.borderColor = color;
+                box.innerHTML = `<div class="mb-1"><select onchange="updateNodeData('${node.id}', 'playerIdx', this.value)" class="bg-transparent font-bold text-sm text-center outline-none" style="color: ${color}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">${opts}</select></div><div class="flex justify-center mt-1 pt-1 border-t border-slate-100"><button onclick="addChild(findNode(treeData, '${node.id}'))" class="text-xs text-blue-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">+</button>${node.parentId ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs text-red-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">×</button>` : ''}</div>`;
+            } else {
+                let pays = ''; gameConfig.playerNames.forEach((n, i) => pays += `<div class="flex items-center gap-1 text-[10px] font-bold" style="color:${CONFIG.colors[i % CONFIG.colors.length]}"><span>${n[0]}:</span><input type="number" value="${node.payoffs[i]}" class="editable-payoff w-8" onchange="updateNodeData('${node.id}', 'payoff', this.value, ${i})" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"></div>`);
+                box.innerHTML = `<div class="grid grid-cols-2 gap-1">${pays}</div><div class="flex justify-between mt-1 pt-1 border-t border-slate-100"><button onclick="addChild(findNode(treeData, '${node.id}'))" class="text-[9px] text-blue-500" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">擴</button><button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-[9px] text-red-500" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">刪</button></div>`;
             }
+            wrap.appendChild(box); container.appendChild(wrap);
+            if (node.children.length > 0) { const cc = document.createElement('div'); cc.className = 'children-container'; node.children.forEach(c => cc.appendChild(buildNodeDOM(c))); container.appendChild(cc); }
+            return container;
         }
 
-        // --- Save / Load Logic ---
-
-        function saveGame() {
-            const data = {
-                version: "3.3",
-                timestamp: new Date().toISOString(),
-                config: gameConfig,
-                tree: treeData
-            };
-            const json = JSON.stringify(data, null, 2);
-            const blob = new Blob([json], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `gametree_v3.3_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        function drawConnections() {
+            const svg = document.getElementById('svg-layer'); svg.innerHTML = ''; const container = document.getElementById('canvas-container');
+            const getCoords = (id) => { const el = document.getElementById(`node-visual-${id}`); if (!el) return null; const r = el.getBoundingClientRect(), cr = container.getBoundingClientRect(); return { x: r.left - cr.left + container.scrollLeft + r.width/2, y: r.top - cr.top + container.scrollTop + r.height/2, bottom: r.bottom - cr.top + container.scrollTop, top: r.top - cr.top + container.scrollTop }; };
+            const draw = (n) => { const pc = getCoords(n.id); if (!pc) return; n.children.forEach(c => { const cc = getCoords(c.id); if (!cc) return; const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const d = `M ${pc.x} ${pc.bottom} C ${pc.x} ${pc.bottom + (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top - (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top}`; path.setAttribute("d", d); let cls = "connection"; if (n.bestChildId === c.id) cls += n.isOnEquilibriumPath ? " equilibrium-path" : " off-path-optimal"; path.setAttribute("class", cls); svg.appendChild(path); draw(c); }); };
+            draw(treeData);
         }
 
-        function importGame(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (!data.tree || !data.config) throw new Error("無效的檔案格式");
-                    gameConfig = data.config;
-                    treeData = restoreNodePrototype(data.tree);
-                    solveGame();
-                    alert("匯入成功！");
-                } catch (err) { alert("匯入失敗: " + err.message); }
-                input.value = ''; 
-            };
-            reader.readAsText(file);
-        }
-
-        function restoreNodePrototype(node) {
-            node.isOnEquilibriumPath = false; 
-            if(node.dx === undefined) node.dx = 0;
-            if(node.dy === undefined) node.dy = 0;
-
-            if (node.children) {
-                node.children.forEach(restoreNodePrototype);
-            }
-            if (node.payoffs.length !== gameConfig.playerCount) {
-                const newPay = Array(gameConfig.playerCount).fill(0);
-                node.payoffs.forEach((p, i) => { if(i < newPay.length) newPay[i] = p; });
-                node.payoffs = newPay;
-            }
-            return node;
-        }
-
-
-        // --- Settings Logic ---
-        let tempConfig = {}; 
+        // Settings Logic - Fixed Bug
+        let tempConfig = {};
         function openSettings() {
-            tempConfig = JSON.parse(JSON.stringify(gameConfig)); 
-            document.getElementById('player-count-display').innerText = tempConfig.playerCount;
-            renderSettingsInputs();
+            tempConfig = JSON.parse(JSON.stringify(gameConfig));
+            renderSettingsUI();
             document.getElementById('settings-modal').classList.add('modal-active');
         }
-        function closeSettings() {
-            document.getElementById('settings-modal').classList.remove('modal-active');
+        function renderSettingsUI() {
+            const list = document.getElementById('player-names-list'); list.innerHTML = '';
+            tempConfig.playerNames.forEach((n, i) => {
+                const div = document.createElement('div'); div.className = "flex items-center gap-2";
+                div.innerHTML = `<div class="w-4 h-4 rounded-full shrink-0" style="background:${CONFIG.colors[i % CONFIG.colors.length]}"></div><input value="${n}" class="flex-1 border p-1 rounded text-sm outline-none focus:ring-1" oninput="tempConfig.playerNames[${i}]=this.value">`;
+                list.appendChild(div);
+            });
+            document.getElementById('player-count-display').textContent = tempConfig.playerCount;
         }
-        function changePlayerCount(delta) {
-            let newCount = tempConfig.playerCount + delta;
+        function closeSettings() { document.getElementById('settings-modal').classList.remove('modal-active'); }
+        function changePlayerCount(d) {
+            let newCount = tempConfig.playerCount + d;
             if (newCount < 1) newCount = 1; if (newCount > 6) newCount = 6;
             tempConfig.playerCount = newCount;
-            document.getElementById('player-count-display').innerText = newCount;
+            // Sync array
             if (tempConfig.playerNames.length < newCount) {
                 for (let i = tempConfig.playerNames.length; i < newCount; i++) tempConfig.playerNames.push(`玩家 ${i + 1}`);
             } else if (tempConfig.playerNames.length > newCount) {
                 tempConfig.playerNames = tempConfig.playerNames.slice(0, newCount);
             }
-            renderSettingsInputs();
-        }
-        function renderSettingsInputs() {
-            const container = document.getElementById('player-names-list');
-            container.innerHTML = '';
-            tempConfig.playerNames.forEach((name, idx) => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-2";
-                const colorDot = document.createElement('div');
-                colorDot.className = "w-4 h-4 rounded-full flex-shrink-0";
-                colorDot.style.backgroundColor = CONFIG.colors[idx % CONFIG.colors.length];
-                const input = document.createElement('input');
-                input.value = name;
-                input.className = "flex-1 border border-slate-300 rounded px-2 py-1 text-sm focus:border-blue-500 outline-none w-full";
-                input.oninput = (e) => { tempConfig.playerNames[idx] = e.target.value; };
-                div.appendChild(colorDot);
-                div.appendChild(input);
-                container.appendChild(div);
-            });
+            renderSettingsUI();
         }
         function applySettings() {
             gameConfig = JSON.parse(JSON.stringify(tempConfig));
             updateTreePayoffs(treeData);
             closeSettings();
-            renderTree(); 
+            renderTree();
         }
-        function updateTreePayoffs(node) {
-            const currentLen = node.payoffs.length;
+        function updateTreePayoffs(n) {
             const targetLen = gameConfig.playerCount;
-            if (currentLen < targetLen) {
-                for (let i = 0; i < targetLen - currentLen; i++) node.payoffs.push(0);
-            } else if (currentLen > targetLen) {
-                node.payoffs = node.payoffs.slice(0, targetLen);
-            }
-            if (node.playerIdx >= targetLen) node.playerIdx = 0;
-            node.children.forEach(updateTreePayoffs);
+            if (n.payoffs.length < targetLen) { for (let i = 0; i < targetLen - n.payoffs.length; i++) n.payoffs.push(0); }
+            else if (n.payoffs.length > targetLen) { n.payoffs = n.payoffs.slice(0, targetLen); }
+            if (n.playerIdx >= targetLen) n.playerIdx = 0;
+            n.children.forEach(updateTreePayoffs);
         }
 
-        // --- Tree Management ---
-        function addChild(parentNode) {
-            const id = 'n-' + Math.random().toString(36).substr(2, 9);
-            const newNode = new Node(id, parentNode.id);
-            newNode.description = `選項 ${parentNode.children.length + 1}`;
-            newNode.playerIdx = (parentNode.playerIdx + 1) % gameConfig.playerCount;
-            parentNode.children.push(newNode);
-            renderTree();
-        }
-        function removeNode(nodeId, parentId) {
-            if (!parentId) return;
-            const parent = findNode(treeData, parentId);
-            if (parent) {
-                parent.children = parent.children.filter(c => c.id !== nodeId);
-                renderTree();
-            }
-        }
-        function findNode(node, id) {
-            if (node.id === id) return node;
-            for (let child of node.children) {
-                const found = findNode(child, id);
-                if (found) return found;
-            }
-            return null;
-        }
-        function updateNodeData(id, type, value, index = 0) {
-            const node = findNode(treeData, id);
-            if (!node) return;
-            if (type === 'desc') node.description = value;
-            if (type === 'playerIdx') node.playerIdx = parseInt(value);
-            if (type === 'payoff') node.payoffs[index] = parseFloat(value) || 0;
-            if (type !== 'desc') {
-                clearSolution(treeData);
-                renderTree();
-            }
-        }
-
-        // --- Logic: Backward Induction ---
-        function solveGame() {
-            clearSolution(treeData);
-            backwardInduction(treeData);
-            traceEquilibriumPath(treeData);
-            renderTree();
-        }
-        function clearSolution(node) {
-            node.bestChildId = null;
-            node.isOnEquilibriumPath = false;
-            node.children.forEach(clearSolution);
-        }
-        function backwardInduction(node) {
-            if (node.children.length === 0) return [...node.payoffs];
-            let bestVal = -Infinity;
-            let bestPayoffs = null;
-            let bestChildId = null;
-            const currentPlayerIdx = node.playerIdx;
-            for (let child of node.children) {
-                const childResult = backwardInduction(child);
-                const val = childResult[currentPlayerIdx];
-                if (val > bestVal) {
-                    bestVal = val; bestPayoffs = childResult; bestChildId = child.id;
-                } else if (val === bestVal && bestPayoffs === null) {
-                    bestPayoffs = childResult; bestChildId = child.id;
-                }
-            }
-            node.bestChildId = bestChildId;
-            return bestPayoffs;
-        }
-        function traceEquilibriumPath(node) {
-            node.isOnEquilibriumPath = true;
-            if (node.bestChildId) {
-                const bestChild = node.children.find(c => c.id === node.bestChildId);
-                if (bestChild) traceEquilibriumPath(bestChild);
-            }
-        }
-
-        // --- UI Utils ---
-        function adjustWidth(input) {
-            const measurer = document.getElementById('text-measurer');
-            if(!measurer) return;
-            measurer.textContent = input.value || input.placeholder;
-            const width = measurer.offsetWidth;
-            input.style.width = Math.max(50, width + 12) + 'px';
-        }
-
-        // --- Rendering ---
-        function renderTree() {
-            const rootContainer = document.getElementById('tree-root');
-            rootContainer.innerHTML = '';
-            rootContainer.appendChild(buildNodeDOM(treeData));
-            requestAnimationFrame(drawConnections);
-        }
-
-        function buildNodeDOM(node) {
-            const container = document.createElement('div');
-            container.className = 'tree-node-container';
-            container.id = `node-container-${node.id}`;
-
-            const nodeWrapper = document.createElement('div');
-            nodeWrapper.className = 'node-wrapper';
-            nodeWrapper.id = `node-wrapper-${node.id}`;
-            nodeWrapper.style.transform = `translate(${node.dx || 0}px, ${node.dy || 0}px)`;
-            
-            // Construct Label (if needed)
-            if (node.parentId) {
-                const label = document.createElement('input');
-                label.value = node.description;
-                label.className = "dynamic-width"; 
-                setTimeout(() => adjustWidth(label), 0);
-                label.oninput = (e) => {
-                    adjustWidth(e.target);
-                    updateNodeData(node.id, 'desc', e.target.value);
-                };
-                
-                // Allow interaction without dragging
-                label.onmousedown = (e) => e.stopPropagation();
-                label.ontouchstart = (e) => e.stopPropagation();
-                
-                nodeWrapper.appendChild(label);
-            }
-
-            // Construct Node Box
-            const nodeBox = document.createElement('div');
-            let cssClass = 'node-box ';
-            cssClass += (node.children.length === 0) ? 'node-terminal ' : 'node-decision ';
-            if (node.isOnEquilibriumPath) cssClass += ' highlight-equilibrium';
-            nodeBox.className = cssClass;
-            nodeBox.id = `node-visual-${node.id}`;
-
-            if (node.children.length > 0) {
-                const playerColor = CONFIG.colors[node.playerIdx % CONFIG.colors.length];
-                let optionsHtml = '';
-                gameConfig.playerNames.forEach((name, idx) => {
-                    optionsHtml += `<option value="${idx}" ${node.playerIdx === idx ? 'selected' : ''}>${name}</option>`;
-                });
-                nodeBox.style.borderColor = playerColor;
-                nodeBox.innerHTML = `
-                    <div class="mb-1">
-                        <select onchange="updateNodeData('${node.id}', 'playerIdx', this.value)" 
-                            class="bg-transparent font-bold text-sm text-center outline-none cursor-pointer" 
-                            style="color: ${playerColor}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
-                            ${optionsHtml}
-                        </select>
-                    </div>
-                    <div class="flex justify-center mt-2 gap-1 border-t pt-1 border-slate-100">
-                        <button onclick="addChildWrapper('${node.id}')" class="text-xs bg-slate-100 hover:bg-blue-100 text-blue-600 rounded px-2 py-0.5" title="新增" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">+</button>
-                        ${!(!node.parentId) ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs bg-slate-100 hover:bg-red-100 text-red-600 rounded px-2 py-0.5" title="刪除" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">×</button>` : ''}
-                    </div>
-                `;
-            } else {
-                let payoffsHtml = '';
-                gameConfig.playerNames.forEach((name, idx) => {
-                    const color = CONFIG.colors[idx % CONFIG.colors.length];
-                    payoffsHtml += `
-                        <div class="payoff-grid" style="display:grid; grid-template-columns: auto 1fr; gap:4px; align-items:center;">
-                            <div class="text-xs font-bold text-right truncate" style="color:${color}">${name[0]}:</div>
-                            <input type="number" value="${node.payoffs[idx]}" 
-                                class="editable-payoff text-sm" 
-                                style="color:${color}"
-                                onchange="updateNodeData('${node.id}', 'payoff', this.value, ${idx})" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
-                        </div>
-                    `;
-                });
-                nodeBox.innerHTML = `
-                    <div style="display:flex; flex-direction:column; gap:2px;">${payoffsHtml}</div>
-                    <div class="flex justify-between mt-2 pt-1 border-t border-slate-100">
-                         <button onclick="addChildWrapper('${node.id}')" class="text-[10px] text-blue-500 hover:underline" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">擴展</button>
-                         <button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-[10px] text-red-500 hover:underline" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">刪除</button>
-                    </div>
-                `;
-            }
-
-            nodeWrapper.appendChild(nodeBox);
-            container.appendChild(nodeWrapper);
-
-            if (node.children.length > 0) {
-                const childrenCont = document.createElement('div');
-                childrenCont.className = 'children-container';
-                node.children.forEach(child => childrenCont.appendChild(buildNodeDOM(child)));
-                container.appendChild(childrenCont);
-            }
-            return container;
-        }
-
-        function addChildWrapper(id) {
-            const node = findNode(treeData, id);
-            addChild(node);
-        }
-
-        // --- Drawing Lines ---
-        function drawConnections() {
-            const svg = document.getElementById('svg-layer');
-            svg.innerHTML = ''; 
-            
-            // Helper to find the connection points relative to canvas
-            const getCoords = (nodeId) => {
-                // We target the node-visual (the box) for connection points
-                const elem = document.getElementById(`node-visual-${nodeId}`);
-                const container = document.getElementById('canvas-container');
-                if (!elem || !container) return null;
-                
-                const rect = elem.getBoundingClientRect();
-                const contRect = container.getBoundingClientRect();
-                
-                // Account for scroll
-                return {
-                    x: rect.left - contRect.left + container.scrollLeft + rect.width / 2,
-                    y: rect.top - contRect.top + container.scrollTop + rect.height / 2,
-                    bottom: rect.bottom - contRect.top + container.scrollTop,
-                    top: rect.top - contRect.top + container.scrollTop
-                };
-            };
-
-            const drawLine = (node) => {
-                if (node.children.length > 0) {
-                    const parentCoords = getCoords(node.id);
-                    if (!parentCoords) return;
-                    
-                    node.children.forEach(child => {
-                        const childCoords = getCoords(child.id);
-                        if (!childCoords) return;
-                        
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        const startX = parentCoords.x;
-                        const startY = parentCoords.bottom;
-                        const endX = childCoords.x;
-                        const endY = childCoords.top;
-                        
-                        // Bezier
-                        const cp1y = startY + (endY - startY) / 2;
-                        const cp2y = endY - (endY - startY) / 2;
-                        const d = `M ${startX} ${startY} C ${startX} ${cp1y}, ${endX} ${cp2y}, ${endX} ${endY}`;
-                        
-                        path.setAttribute("d", d);
-                        let className = "connection";
-                        const isOptimalMove = (node.bestChildId === child.id);
-                        if (isOptimalMove) {
-                            if (node.isOnEquilibriumPath) className += " equilibrium-path";
-                            else className += " off-path-optimal";
-                        }
-                        path.setAttribute("class", className);
-                        svg.appendChild(path);
-                        
-                        drawLine(child);
-                    });
-                }
-            };
-            
-            // Adjust SVG size to fit content
-            const rootEl = document.getElementById('tree-root');
-            svg.style.width = Math.max(rootEl.scrollWidth + 200, window.innerWidth) + 'px';
-            svg.style.height = Math.max(rootEl.scrollHeight + 200, window.innerHeight) + 'px';
-            
-            drawLine(treeData);
-        }
+        // Modals
+        function openAiModal() { document.getElementById('ai-modal').classList.add('modal-active'); }
+        function closeAiModal() { document.getElementById('ai-modal').classList.remove('modal-active'); }
+        function closeAnalysisModal() { document.getElementById('analysis-modal').classList.remove('modal-active'); }
+        function saveGame() { const blob = new Blob([JSON.stringify({ config: gameConfig, tree: treeData })], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `gametree_v3.4.2.json`; a.click(); }
+        function importGame(input) { const reader = new FileReader(); reader.onload = (e) => { const d = JSON.parse(e.target.result); gameConfig = d.config; treeData = restoreNodePrototype(d.tree); solveGame(); }; reader.readAsText(input.files[0]); }
 
         window.addEventListener('resize', drawConnections);
         init();
