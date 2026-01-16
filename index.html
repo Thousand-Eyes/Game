@@ -2,26 +2,27 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- V3.1 Update: Removed user-scalable=no to allow page zooming if needed, optimized for mobile -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 動態賽局樹求解器 V3.1 (RWD+拖曳版)</title>
+    <!-- Viewport setup for mobile handling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 動態賽局樹求解器 V3.3 (觸控優化版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: "Noto Sans TC", sans-serif; overflow: hidden; touch-action: none; }
+        /* Prevent default browser touch actions to handle gestures manually */
+        body { font-family: "Noto Sans TC", sans-serif; overflow: hidden; touch-action: none; background-color: #f8fafc; }
         
         /* 樹狀結構佈局核心 */
-        .tree { display: flex; justify-content: center; padding-top: 50px; padding-bottom: 200px; padding-left: 50px; padding-right: 50px; }
+        .tree { display: flex; justify-content: center; padding-top: 50px; padding-bottom: 300px; padding-left: 100px; padding-right: 100px; transform-origin: center top; }
         .tree-node-container { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 10px; } 
         .children-container { display: flex; flex-direction: row; justify-content: center; margin-top: 60px; }
 
-        /* V3.1 Update: Node Wrapper for grouping Label + NodeBox */
+        /* Node Wrapper: Groups Label and Box for unified movement */
         .node-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
             z-index: 10;
-            /* Transform will be applied here */
+            /* Transformations applied here via JS */
         }
 
         /* 節點樣式 */
@@ -31,6 +32,7 @@
             position: relative;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             cursor: grab; 
+            touch-action: none; /* Important for node dragging */
         }
         .node-box:active {
             cursor: grabbing;
@@ -70,8 +72,8 @@
             font-size: 11px;
             color: #475569;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            /* V3.1 Update: Margin bottom to separate from node box */
             margin-bottom: 4px;
+            pointer-events: auto; /* Ensure inputs are clickable */
         }
         input.dynamic-width:focus {
             border-color: #3b82f6;
@@ -134,61 +136,53 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Collapsible Legend Animation */
-        .legend-content {
-            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
-            max-height: 200px;
-            opacity: 1;
-            overflow: hidden;
+        /* Analysis Result Styling */
+        .analysis-text {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            color: #334155;
         }
-        .legend-collapsed .legend-content {
-            max-height: 0;
-            opacity: 0;
-        }
-        .legend-toggle-icon {
-            transition: transform 0.3s ease;
-        }
-        .legend-collapsed .legend-toggle-icon {
-            transform: rotate(-90deg);
-        }
+        .analysis-text strong { color: #1e293b; font-weight: 700; }
+        .analysis-text h3 { font-size: 1.1rem; font-weight: 800; color: #4f46e5; margin-top: 1rem; margin-bottom: 0.5rem; }
     </style>
 </head>
-<body class="bg-slate-50 h-screen flex flex-col text-slate-800">
+<body class="h-screen flex flex-col text-slate-800 bg-slate-50">
 
-    <!-- Header (Responsive) -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 relative">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 relative shrink-0">
         <div class="flex items-center gap-3 mb-3 lg:mb-0 w-full lg:w-auto justify-center lg:justify-start">
             <div class="p-2 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg text-white shadow-md flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5a2.5 2.5 0 0 0-2.5 2.5H5a4 5 0 0 0 0 9h6a4 5 0 0 0 0-9h-1a2.5 2.5 0 0 0-2.5-2.5z"/></svg>
             </div>
             <div>
-                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-violet-600 text-[10px] md:text-xs px-1 border border-violet-200 rounded align-middle">V3.1</span></h1>
-                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">AI 輔助建模 | 自由拖曳節點 | 自動最佳解</p>
+                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-violet-600 text-[10px] md:text-xs px-1 border border-violet-200 rounded align-middle">V3.3</span></h1>
+                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">觸控優化 | 自動跟隨 | 策略分析</p>
             </div>
         </div>
 
         <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto justify-center">
-            <button onclick="openAiModal()" class="col-span-2 sm:col-span-1 px-3 py-2 text-sm font-bold text-white bg-violet-600 rounded-full shadow hover:bg-violet-700 transition-all flex items-center justify-center gap-1 border border-violet-500">
+            <button onclick="openAiModal()" class="px-3 py-2 text-sm font-bold text-white bg-violet-600 rounded-full shadow hover:bg-violet-700 transition-all flex items-center justify-center gap-1 border border-violet-500">
                 <span>🤖 AI 生成</span>
+            </button>
+            
+            <button onclick="analyzeGameWithAI()" class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1 border border-amber-400">
+                <span>✨ 策略分析</span>
             </button>
 
             <button onclick="openSettings()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1">
-                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 設定
             </button>
             
             <button onclick="saveGame()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1">
-                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
                 儲存
             </button>
             <label class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors flex items-center justify-center gap-1 cursor-pointer">
-                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                 匯入
                 <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importGame(this)">
             </label>
 
             <button onclick="solveGame()" class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 transition-colors flex items-center justify-center gap-1">
-                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 計算最佳解
             </button>
         </div>
@@ -196,49 +190,23 @@
 
     <!-- Main Canvas -->
     <main class="flex-1 relative overflow-hidden bg-slate-50 flex flex-col">
-        
-        <!-- Collapsible Legend -->
-        <div id="legend-box" class="absolute top-2 left-2 md:top-4 md:left-4 z-20 bg-white/90 rounded-lg border border-slate-200 text-xs shadow-md backdrop-blur-sm transition-all w-48 md:w-56">
-            <div class="flex justify-between items-center p-2 cursor-pointer border-b border-slate-100" onclick="toggleLegend()">
-                <h3 class="font-bold text-slate-700">圖例說明</h3>
-                <svg id="legend-icon" class="w-4 h-4 text-slate-500 legend-toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </div>
-            <div class="legend-content p-2">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-8 h-1 bg-green-500 rounded"></div>
-                    <span>均衡路徑 (推薦)</span>
-                </div>
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-8 h-0 border-t-2 border-green-300 border-dashed"></div>
-                    <span>非均衡最佳反應</span>
-                </div>
-                <div class="text-[10px] text-slate-400 mt-1 leading-tight">
-                    操作提示：<br>
-                    • 按住節點可自由拖曳<br>
-                    • 標籤與節點自動跟隨<br>
-                    • 滾輪縮放畫布<br>
-                    • 支援手機雙指縮放
-                </div>
-            </div>
-        </div>
-
-        <!-- Canvas Container (Wheel listener added) -->
-        <div id="canvas-container" class="canvas-area w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing" onmousedown="startCanvasDrag(event)" onwheel="handleWheel(event)">
+        <!-- Canvas Container with Event Listeners -->
+        <div id="canvas-container" class="canvas-area w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
             <svg id="svg-layer"></svg>
-            <div id="tree-root" class="tree min-w-max min-h-max transform origin-top transition-transform duration-75">
+            <div id="tree-root" class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
                 <!-- Tree Injected Here -->
             </div>
         </div>
 
         <!-- Zoom Controls -->
         <div class="absolute bottom-6 right-6 z-20 flex gap-2">
-             <button onclick="zoom(-0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">-</button>
+             <button onclick="manualZoom(-0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">-</button>
              <button onclick="resetZoom()" class="px-3 h-10 md:h-8 bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 flex items-center">100%</button>
-             <button onclick="zoom(0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">+</button>
+             <button onclick="manualZoom(0.1)" class="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-lg md:text-base">+</button>
         </div>
     </main>
 
-    <!-- AI Agent Modal -->
+    <!-- AI Generation Modal -->
     <div id="ai-modal" class="modal-overlay">
         <div class="bg-white rounded-xl shadow-2xl p-4 md:p-6 w-[500px] max-w-full max-h-[90vh] overflow-y-auto m-4 border-t-4 border-violet-600 flex flex-col">
             <div class="flex justify-between items-center mb-4">
@@ -282,6 +250,30 @@
         </div>
     </div>
 
+    <!-- Analysis Result Modal -->
+    <div id="analysis-modal" class="modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl p-4 md:p-6 w-[600px] max-w-full max-h-[90vh] overflow-y-auto m-4 border-t-4 border-amber-500 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-2xl">✨</span> AI 策略分析報告
+                </h2>
+                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600 p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div id="analysis-content" class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm">
+                <!-- Content will be injected here -->
+            </div>
+            
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeAnalysisModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300 transition-colors">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-96 max-w-full m-4">
@@ -317,7 +309,6 @@
 
     <!-- JS Logic -->
     <script>
-        // --- Configuration & State ---
         const CONFIG = {
             colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] 
         };
@@ -344,12 +335,19 @@
 
         let treeData = null;
         let scale = 1;
-        // Interaction State
-        let isCanvasDragging = false;
-        let draggingNodeId = null;
-        let dragStartX, dragStartY;
-        let initialNodeDx = 0, initialNodeDy = 0;
+        // Panning State
+        let isPan = false;
+        let panStartX, panStartY;
         let scrollLeft, scrollTop;
+        
+        // Node Dragging State
+        let draggingNodeId = null;
+        let nodeDragStartX, nodeDragStartY;
+        let initialNodeDx, initialNodeDy;
+
+        // Pinch Zoom State
+        let initialPinchDistance = 0;
+        let initialScale = 1;
 
         // --- Initialization ---
         function init() {
@@ -358,106 +356,194 @@
             addChild(treeData);
             addChild(treeData);
             renderTree();
+            setupEventListeners();
         }
 
-        // --- Legend Toggle ---
-        function toggleLegend() {
-            const legend = document.getElementById('legend-box');
-            legend.classList.toggle('legend-collapsed');
+        function setupEventListeners() {
+            const container = document.getElementById('canvas-container');
+            
+            // Mouse Events
+            container.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            container.addEventListener('wheel', onWheel, { passive: false });
+
+            // Touch Events
+            container.addEventListener('touchstart', onTouchStart, { passive: false });
+            container.addEventListener('touchmove', onTouchMove, { passive: false });
+            container.addEventListener('touchend', onTouchEnd);
         }
 
-        // --- Dragging Logic ---
-        
-        const slider = document.getElementById('canvas-container');
+        // --- Event Handlers ---
 
-        // Canvas Pan
-        function startCanvasDrag(e) {
-            if(e.target.closest('.node-wrapper') || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+        function onMouseDown(e) {
+            // Check if clicking interaction elements
+            if (e.target.closest('button') || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+
+            // Check if clicking a node (for dragging node)
+            const nodeWrapper = e.target.closest('.node-wrapper');
+            if (nodeWrapper) {
+                startNodeDrag(nodeWrapper.id.replace('node-wrapper-', ''), e.clientX, e.clientY);
                 return;
             }
-            isCanvasDragging = true;
-            slider.classList.add('cursor-grabbing');
-            
-            const pageX = e.touches ? e.touches[0].pageX : e.pageX;
-            const pageY = e.touches ? e.touches[0].pageY : e.pageY;
 
-            dragStartX = pageX - slider.offsetLeft;
-            dragStartY = pageY - slider.offsetTop;
-            scrollLeft = slider.scrollLeft;
-            scrollTop = slider.scrollTop;
+            // Otherwise Pan Canvas
+            isPan = true;
+            const container = document.getElementById('canvas-container');
+            container.classList.add('cursor-grabbing');
+            panStartX = e.clientX;
+            panStartY = e.clientY;
+            scrollLeft = container.scrollLeft;
+            scrollTop = container.scrollTop;
         }
 
-        // V3.1 Update: Mouse Wheel Zoom
-        function handleWheel(e) {
-            // Prevent default page scroll only if scaling
-            if (e.ctrlKey || e.metaKey || e.deltaY) {
+        function onMouseMove(e) {
+            if (draggingNodeId) {
+                e.preventDefault();
+                updateNodeDrag(e.clientX, e.clientY);
+            } else if (isPan) {
+                e.preventDefault();
+                const container = document.getElementById('canvas-container');
+                const x = e.clientX - panStartX;
+                const y = e.clientY - panStartY;
+                container.scrollLeft = scrollLeft - x;
+                container.scrollTop = scrollTop - y;
+            }
+        }
+
+        function onMouseUp() {
+            isPan = false;
+            draggingNodeId = null;
+            document.getElementById('canvas-container').classList.remove('cursor-grabbing');
+        }
+
+        function onWheel(e) {
+            if (e.ctrlKey || e.metaKey || !e.shiftKey) { // Allow normal scroll if shift held, else zoom
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                zoom(delta);
+                manualZoom(delta);
             }
         }
 
-        // Node Drag
-        function startNodeDrag(e, nodeId) {
-            e.stopPropagation(); 
-            draggingNodeId = nodeId;
+        // --- Touch Logic (Pan, Zoom, Drag) ---
+
+        function onTouchStart(e) {
+            if (e.target.closest('button') || e.target.tagName === 'SELECT') {
+                e.stopPropagation(); // Allow native interaction
+                return; 
+            }
             
-            const node = findNode(treeData, nodeId);
+            // Allow inputs to focus but prevent map drag if touching input
+            if (e.target.tagName === 'INPUT') {
+                return; 
+            }
+
+            e.preventDefault(); // Prevent default scroll
+
+            if (e.touches.length === 2) {
+                // Pinch Zoom Start
+                initialPinchDistance = getDistance(e.touches[0], e.touches[1]);
+                initialScale = scale;
+            } else if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const nodeWrapper = e.target.closest('.node-wrapper');
+                
+                if (nodeWrapper) {
+                    startNodeDrag(nodeWrapper.id.replace('node-wrapper-', ''), touch.clientX, touch.clientY);
+                } else {
+                    // Pan Start
+                    isPan = true;
+                    const container = document.getElementById('canvas-container');
+                    panStartX = touch.clientX;
+                    panStartY = touch.clientY;
+                    scrollLeft = container.scrollLeft;
+                    scrollTop = container.scrollTop;
+                }
+            }
+        }
+
+        function onTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                // Pinch Zooming
+                const currentDistance = getDistance(e.touches[0], e.touches[1]);
+                const diff = currentDistance - initialPinchDistance;
+                // Sensitivity factor
+                const newScale = Math.max(0.3, Math.min(2.5, initialScale + (diff * 0.005)));
+                scale = newScale;
+                applyZoom();
+            } else if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                if (draggingNodeId) {
+                    updateNodeDrag(touch.clientX, touch.clientY);
+                } else if (isPan) {
+                    const container = document.getElementById('canvas-container');
+                    const x = touch.clientX - panStartX;
+                    const y = touch.clientY - panStartY;
+                    container.scrollLeft = scrollLeft - x;
+                    container.scrollTop = scrollTop - y;
+                }
+            }
+        }
+
+        function onTouchEnd(e) {
+            isPan = false;
+            draggingNodeId = null;
+            if (e.touches.length < 2) {
+                initialPinchDistance = 0;
+            }
+        }
+
+        function getDistance(t1, t2) {
+            return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
+        }
+
+        // --- Node Operations ---
+
+        function startNodeDrag(id, clientX, clientY) {
+            draggingNodeId = id;
+            nodeDragStartX = clientX;
+            nodeDragStartY = clientY;
+            const node = findNode(treeData, id);
             initialNodeDx = node.dx || 0;
             initialNodeDy = node.dy || 0;
-
-            const pageX = e.touches ? e.touches[0].pageX : e.pageX;
-            const pageY = e.touches ? e.touches[0].pageY : e.pageY;
-
-            dragStartX = pageX;
-            dragStartY = pageY;
         }
 
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('touchmove', handleMove, { passive: false });
+        function updateNodeDrag(clientX, clientY) {
+            // Calculate delta adjusted for scale
+            const dx = (clientX - nodeDragStartX) / scale;
+            const dy = (clientY - nodeDragStartY) / scale;
+            
+            const node = findNode(treeData, draggingNodeId);
+            node.dx = initialNodeDx + dx;
+            node.dy = initialNodeDy + dy;
 
-        function handleMove(e) {
-            const pageX = e.touches ? e.touches[0].pageX : e.pageX;
-            const pageY = e.touches ? e.touches[0].pageY : e.pageY;
-
-            if (isCanvasDragging) {
-                e.preventDefault(); 
-                const x = pageX - slider.offsetLeft;
-                const y = pageY - slider.offsetTop;
-                const walkX = (x - dragStartX); 
-                const walkY = (y - dragStartY);
-                slider.scrollLeft = scrollLeft - walkX;
-                slider.scrollTop = scrollTop - walkY;
-            } 
-            else if (draggingNodeId) {
-                e.preventDefault();
-                const deltaX = (pageX - dragStartX) / scale;
-                const deltaY = (pageY - dragStartY) / scale;
-                
-                const node = findNode(treeData, draggingNodeId);
-                node.dx = initialNodeDx + deltaX;
-                node.dy = initialNodeDy + deltaY;
-
-                // Update visual position of the WRAPPER (label + box)
-                const nodeEl = document.getElementById(`node-wrapper-${draggingNodeId}`);
-                if (nodeEl) {
-                    nodeEl.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
-                }
-                
-                requestAnimationFrame(drawConnections);
-            }
+            // Apply directly for smoothness
+            const el = document.getElementById(`node-wrapper-${draggingNodeId}`);
+            if (el) el.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
+            
+            requestAnimationFrame(drawConnections);
         }
 
-        window.addEventListener('mouseup', endDrag);
-        window.addEventListener('touchend', endDrag);
+        // --- Zoom Logic ---
 
-        function endDrag() {
-            isCanvasDragging = false;
-            draggingNodeId = null;
-            slider.classList.remove('cursor-grabbing');
+        function manualZoom(delta) {
+            scale = Math.max(0.3, Math.min(2.5, scale + delta));
+            applyZoom();
         }
 
-        // --- AI Agent Logic ---
+        function resetZoom() {
+            scale = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            document.getElementById('tree-root').style.transform = `scale(${scale})`;
+            // Re-draw connections because coordinates change visually
+            requestAnimationFrame(drawConnections);
+        }
+
+        // --- AI Agent Logic (Shared API Caller) ---
         function openAiModal() {
             document.getElementById('ai-modal').classList.add('modal-active');
             const savedKey = localStorage.getItem('gemini_api_key');
@@ -469,26 +555,93 @@
             document.getElementById('ai-error-msg').classList.add('hidden');
         }
 
+        function closeAnalysisModal() {
+            document.getElementById('analysis-modal').classList.remove('modal-active');
+        }
+
+        // V3.2: Generic API Caller
+        async function callGeminiAPI(prompt, systemPrompt = "") {
+            const apiKey = document.getElementById('ai-api-key').value.trim() || localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                alert("請先在 AI 生成設定中輸入您的 API Key");
+                openAiModal();
+                throw new Error("Missing API Key");
+            }
+            
+            const model = document.getElementById('ai-model-select').value || "gemini-1.5-flash";
+            
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: systemPrompt + "\n\n" + prompt }]
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                let errorText = response.statusText;
+                try { const err = await response.json(); if(err.error) errorText = err.error.message; } catch(e){}
+                throw new Error(`API Error (${response.status}): ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // V3.2: Strategy Analysis Function
+        async function analyzeGameWithAI() {
+            const contentDiv = document.getElementById('analysis-content');
+            document.getElementById('analysis-modal').classList.add('modal-active');
+            contentDiv.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-3"><div class="loader"></div><p class="text-slate-500">正在分析戰略...</p></div>';
+
+            solveGame(); // Ensure path is calculated
+
+            const systemPrompt = `你是一位精通賽局理論的戰略顧問。請分析以下 JSON 格式的賽局樹資料（包含納許均衡路徑）。
+            請使用繁體中文，以專業但易懂的語氣，輸出以下內容（請使用 Markdown 格式加強排版）：
+            1. **局勢總結**：一句話說明這個賽局的核心衝突與結果。
+            2. **最佳路徑分析**：解釋為什麼這是理性的最佳選擇 (Nash Equilibrium)，雙方在想什麼？
+            3. **風險提示**：如果對手是非理性的，或者偏離了最佳路徑，會有什麼風險？
+            4. **致勝建議**：給予起始玩家 (Player 0) 具體的行動建議或談判籌碼。`;
+
+            try {
+                // Simplify tree for token limit if needed, but usually fine for simple games
+                const gameJson = JSON.stringify({ config: gameConfig, tree: treeData });
+                const result = await callGeminiAPI("請分析此賽局數據：\n" + gameJson, systemPrompt);
+                
+                // Simple formatter
+                let formatted = result
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/^#+\s+(.*$)/gm, '<h3>$1</h3>')
+                    .replace(/\n/g, '<br>');
+                
+                contentDiv.innerHTML = formatted;
+            } catch (err) {
+                if(err.message !== "Missing API Key") {
+                    contentDiv.innerHTML = `<p class="text-red-500">分析失敗: ${err.message}</p>`;
+                } else {
+                    document.getElementById('analysis-modal').classList.remove('modal-active');
+                }
+            }
+        }
+
         async function generateGameFromAI() {
-            const apiKey = document.getElementById('ai-api-key').value.trim();
             const promptText = document.getElementById('ai-prompt').value.trim();
-            const model = document.getElementById('ai-model-select').value;
             const btnText = document.getElementById('ai-btn-text');
             const spinner = document.getElementById('ai-spinner');
             const errorMsg = document.getElementById('ai-error-msg');
 
-            if (!apiKey) {
-                errorMsg.textContent = "請輸入 Google Gemini API Key";
-                errorMsg.classList.remove('hidden');
-                return;
-            }
             if (!promptText) {
                 errorMsg.textContent = "請輸入賽局情境描述";
                 errorMsg.classList.remove('hidden');
                 return;
             }
 
-            localStorage.setItem('gemini_api_key', apiKey);
+            // Save key if entered manually
+            const keyInput = document.getElementById('ai-api-key').value.trim();
+            if(keyInput) localStorage.setItem('gemini_api_key', keyInput);
+
             btnText.textContent = "AI 分析中...";
             spinner.classList.remove('hidden');
             errorMsg.classList.add('hidden');
@@ -497,31 +650,14 @@
             const systemPrompt = `
                 You are a Game Theory Expert. Analyze the user's scenario and output a valid JSON representing the game tree.
                 RULES:
-                1. Output ONLY valid JSON.
+                1. Output ONLY valid JSON. No markdown formatting.
                 2. Schema: {"config": {"playerCount": number, "playerNames": []}, "tree": {"id": "root", "playerIdx": 0, "payoffs": [], "children": []}}
                 3. "playerIdx" 0 based.
                 4. Create reasonable structure.
             `;
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: systemPrompt + "\n\nUser Scenario:\n" + promptText }]
-                        }]
-                    })
-                });
-
-                if (!response.ok) {
-                    let errorText = response.statusText;
-                    try { const err = await response.json(); if(err.error) errorText = err.error.message; } catch(e){}
-                    throw new Error(`API Error (${response.status}): ${errorText}`);
-                }
-
-                const data = await response.json();
-                const aiText = data.candidates[0].content.parts[0].text;
+                const aiText = await callGeminiAPI("User Scenario:\n" + promptText, systemPrompt);
                 const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const gameData = JSON.parse(cleanJson);
 
@@ -548,7 +684,7 @@
 
         function saveGame() {
             const data = {
-                version: "3.1",
+                version: "3.3",
                 timestamp: new Date().toISOString(),
                 config: gameConfig,
                 tree: treeData
@@ -558,7 +694,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `gametree_v3.1_${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `gametree_v3.3_${new Date().toISOString().slice(0,10)}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -756,32 +892,23 @@
             container.className = 'tree-node-container';
             container.id = `node-container-${node.id}`;
 
-            // V3.1: Create Group Wrapper for Label + NodeBox
             const nodeWrapper = document.createElement('div');
             nodeWrapper.className = 'node-wrapper';
-            nodeWrapper.id = `node-wrapper-${node.id}`; // Add ID for drag updates
-            
-            // Apply Transform for independent movement on the wrapper
+            nodeWrapper.id = `node-wrapper-${node.id}`;
             nodeWrapper.style.transform = `translate(${node.dx || 0}px, ${node.dy || 0}px)`;
             
-            // Add Drag Listener to the Wrapper (so clicking label or box initiates drag)
-            nodeWrapper.onmousedown = (e) => startNodeDrag(e, node.id);
-            nodeWrapper.ontouchstart = (e) => startNodeDrag(e, node.id);
-
             // Construct Label (if needed)
             if (node.parentId) {
                 const label = document.createElement('input');
                 label.value = node.description;
                 label.className = "dynamic-width"; 
-                // We don't need absolute positioning anymore because they are stacked in flex column
-                
                 setTimeout(() => adjustWidth(label), 0);
                 label.oninput = (e) => {
                     adjustWidth(e.target);
                     updateNodeData(node.id, 'desc', e.target.value);
                 };
                 
-                // Stop propagation for inputs to allow typing
+                // Allow interaction without dragging
                 label.onmousedown = (e) => e.stopPropagation();
                 label.ontouchstart = (e) => e.stopPropagation();
                 
@@ -797,7 +924,6 @@
             nodeBox.id = `node-visual-${node.id}`;
 
             if (node.children.length > 0) {
-                // Decision Node
                 const playerColor = CONFIG.colors[node.playerIdx % CONFIG.colors.length];
                 let optionsHtml = '';
                 gameConfig.playerNames.forEach((name, idx) => {
@@ -808,17 +934,16 @@
                     <div class="mb-1">
                         <select onchange="updateNodeData('${node.id}', 'playerIdx', this.value)" 
                             class="bg-transparent font-bold text-sm text-center outline-none cursor-pointer" 
-                            style="color: ${playerColor}" onclick="event.stopPropagation()">
+                            style="color: ${playerColor}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
                             ${optionsHtml}
                         </select>
                     </div>
                     <div class="flex justify-center mt-2 gap-1 border-t pt-1 border-slate-100">
-                        <button onclick="addChildWrapper('${node.id}')" class="text-xs bg-slate-100 hover:bg-blue-100 text-blue-600 rounded px-2 py-0.5" title="新增" onmousedown="event.stopPropagation()">+</button>
-                        ${!(!node.parentId) ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs bg-slate-100 hover:bg-red-100 text-red-600 rounded px-2 py-0.5" title="刪除" onmousedown="event.stopPropagation()">×</button>` : ''}
+                        <button onclick="addChildWrapper('${node.id}')" class="text-xs bg-slate-100 hover:bg-blue-100 text-blue-600 rounded px-2 py-0.5" title="新增" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">+</button>
+                        ${!(!node.parentId) ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs bg-slate-100 hover:bg-red-100 text-red-600 rounded px-2 py-0.5" title="刪除" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">×</button>` : ''}
                     </div>
                 `;
             } else {
-                // Terminal Node
                 let payoffsHtml = '';
                 gameConfig.playerNames.forEach((name, idx) => {
                     const color = CONFIG.colors[idx % CONFIG.colors.length];
@@ -828,15 +953,15 @@
                             <input type="number" value="${node.payoffs[idx]}" 
                                 class="editable-payoff text-sm" 
                                 style="color:${color}"
-                                onchange="updateNodeData('${node.id}', 'payoff', this.value, ${idx})" onmousedown="event.stopPropagation()">
+                                onchange="updateNodeData('${node.id}', 'payoff', this.value, ${idx})" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
                         </div>
                     `;
                 });
                 nodeBox.innerHTML = `
                     <div style="display:flex; flex-direction:column; gap:2px;">${payoffsHtml}</div>
                     <div class="flex justify-between mt-2 pt-1 border-t border-slate-100">
-                         <button onclick="addChildWrapper('${node.id}')" class="text-[10px] text-blue-500 hover:underline" onmousedown="event.stopPropagation()">擴展</button>
-                         <button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-[10px] text-red-500 hover:underline" onmousedown="event.stopPropagation()">刪除</button>
+                         <button onclick="addChildWrapper('${node.id}')" class="text-[10px] text-blue-500 hover:underline" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">擴展</button>
+                         <button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-[10px] text-red-500 hover:underline" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">刪除</button>
                     </div>
                 `;
             }
@@ -923,17 +1048,6 @@
             svg.style.height = Math.max(rootEl.scrollHeight + 200, window.innerHeight) + 'px';
             
             drawLine(treeData);
-        }
-
-        function zoom(delta) {
-            scale = Math.max(0.4, Math.min(2, scale + delta));
-            document.getElementById('tree-root').style.transform = `scale(${scale})`;
-            drawConnections();
-        }
-        function resetZoom() {
-            scale = 1;
-            document.getElementById('tree-root').style.transform = `scale(1)`;
-            drawConnections();
         }
 
         window.addEventListener('resize', drawConnections);
