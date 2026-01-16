@@ -1,31 +1,83 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 賽局樹求解器 V3.4.2 (範本生成版)</title>
+    <title>AI 賽局樹求解器 V3.5 (範本生成版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: "Noto Sans TC", sans-serif; overflow: hidden; touch-action: none; background-color: #f8fafc; }
-        
-        .tree { display: flex; justify-content: center; padding: 50px 100px 300px 100px; transform-origin: center top; }
-        .tree-node-container { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 10px; } 
-        .children-container { display: flex; flex-direction: row; justify-content: center; margin-top: 60px; }
+        body {
+            font-family: "Noto Sans TC", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            background-color: #f8fafc;
+        }
 
-        .node-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 10; }
+        .tree {
+            display: flex;
+            justify-content: center;
+            padding: 50px 100px 300px 100px;
+            transform-origin: center top;
+        }
+
+        .tree-node-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            padding: 0 10px;
+        }
+
+        .children-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            margin-top: 60px;
+        }
+
+        .node-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
         .node-box {
             background: white;
             position: relative;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            cursor: grab; 
+            cursor: grab;
             touch-action: none;
             transition: box-shadow 0.3s ease;
         }
-        .node-box:active { cursor: grabbing; }
-        .node-decision { border: 3px solid #3b82f6; border-radius: 9999px; padding: 8px 16px; min-width: 90px; text-align: center; }
-        .node-terminal { border: 3px solid #ef4444; border-radius: 12px; padding: 8px; min-width: 100px; }
-        
-        .highlight-equilibrium { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); border-color: #22c55e !important; background-color: #f0fdf4; font-weight: bold; }
+
+        .node-box:active {
+            cursor: grabbing;
+        }
+
+        .node-decision {
+            border: 3px solid #3b82f6;
+            border-radius: 9999px;
+            padding: 8px 16px;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        .node-terminal {
+            border: 3px solid #ef4444;
+            border-radius: 12px;
+            padding: 8px;
+            min-width: 100px;
+        }
+
+        .highlight-equilibrium {
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.9);
+            border-color: #22c55e !important;
+            background-color: #f0fdf4;
+            font-weight: bold;
+        }
 
         input.dynamic-width {
             background: rgba(255, 255, 255, 0.95);
@@ -39,58 +91,148 @@
             margin-bottom: 4px;
         }
 
-        #svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-        path.connection { fill: none; stroke: #cbd5e1; stroke-width: 2; }
-        path.equilibrium-path { stroke: #22c55e; stroke-width: 5; stroke-dasharray: 15; animation: flow 1s linear infinite; z-index: 5; }
-        path.off-path-optimal { stroke: #86efac; stroke-width: 3; stroke-dasharray: 5, 5; }
-        @keyframes flow { to { stroke-dashoffset: -30; } }
-        
-        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; z-index: 50; padding: 1rem; }
-        .modal-active { display: flex; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
 
-        .analysis-text h3 { font-size: 1.1rem; font-weight: 800; color: #4f46e5; margin-top: 1rem; margin-bottom: 0.5rem; border-left: 4px solid #4f46e5; padding-left: 8px; }
-        .analysis-text p { margin-bottom: 0.75rem; line-height: 1.6; }
+        path.connection {
+            fill: none;
+            stroke: #cbd5e1;
+            stroke-width: 2;
+        }
+
+        path.equilibrium-path {
+            stroke: #22c55e;
+            stroke-width: 5;
+            stroke-dasharray: 15;
+            animation: flow 1s linear infinite;
+            z-index: 5;
+        }
+
+        path.off-path-optimal {
+            stroke: #86efac;
+            stroke-width: 3;
+            stroke-dasharray: 5, 5;
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -30;
+            }
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+
+        .modal-active {
+            display: flex;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .analysis-text h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #4f46e5;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #4f46e5;
+            padding-left: 8px;
+        }
+
+        .analysis-text p {
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
+
 <body class="h-screen flex flex-col text-slate-800 bg-slate-50">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 shrink-0">
+    <header
+        class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 shrink-0">
         <div class="flex items-center gap-3 mb-3 lg:mb-0 w-full lg:w-auto justify-center lg:justify-start">
-            <div class="p-2 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-lg text-white shadow-md flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5a2.5 2.5 0 0 0-2.5 2.5H5a4 5 0 0 0 0 9h6a4 5 0 0 0 0-9h-1a2.5 2.5 0 0 0-2.5-2.5z"/></svg>
+            <div
+                class="p-2 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-lg text-white shadow-md flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z" />
+                    <path
+                        d="M8.5 8.5a2.5 2.5 0 0 0-2.5 2.5H5a4 5 0 0 0 0 9h6a4 5 0 0 0 0-9h-1a2.5 2.5 0 0 0-2.5-2.5z" />
+                </svg>
             </div>
             <div>
-                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-blue-600 text-[10px] md:text-xs px-1 border border-blue-200 rounded align-middle">V3.4.2</span></h1>
+                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span
+                        class="text-blue-600 text-[10px] md:text-xs px-1 border border-blue-200 rounded align-middle">V3.4.2</span>
+                </h1>
                 <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">範本生成 | 自動縮放與拖曳 | 深度策略解析</p>
             </div>
         </div>
 
         <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto justify-center">
-            <button onclick="openAiModal()" class="px-3 py-2 text-sm font-bold text-white bg-indigo-600 rounded-full shadow hover:bg-indigo-700 transition-all flex items-center justify-center gap-1">
+            <button onclick="openAiModal()"
+                class="px-3 py-2 text-sm font-bold text-white bg-indigo-600 rounded-full shadow hover:bg-indigo-700 transition-all flex items-center justify-center gap-1">
                 <span>🤖 AI 生成</span>
             </button>
-            
-            <button onclick="analyzeGameWithAI()" class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1">
+
+            <button onclick="analyzeGameWithAI()"
+                class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1">
                 <span>✨ 策略分析</span>
             </button>
 
-            <button onclick="openSettings()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
+            <button onclick="openSettings()"
+                class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
                 設定
             </button>
-            
-            <button onclick="saveGame()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
+
+            <button onclick="saveGame()"
+                class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
                 儲存
             </button>
-            
-            <label class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1 cursor-pointer">
+
+            <label
+                class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1 cursor-pointer">
                 匯入
                 <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importGame(this)">
             </label>
 
-            <button onclick="solveGame()" class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 flex items-center justify-center gap-1">
+            <button onclick="solveGame()"
+                class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 flex items-center justify-center gap-1">
                 計算路徑
             </button>
         </div>
@@ -100,15 +242,19 @@
     <main class="flex-1 relative overflow-hidden bg-slate-50">
         <div id="canvas-container" class="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
             <svg id="svg-layer"></svg>
-            <div id="tree-root" class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
+            <div id="tree-root"
+                class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
                 <!-- Tree Injected Here -->
             </div>
         </div>
 
         <div class="absolute bottom-6 right-6 z-20 flex gap-2">
-             <button onclick="manualZoom(-0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">-</button>
-             <button onclick="resetZoom()" class="px-3 h-10 bg-white rounded-full shadow border border-slate-200 text-xs font-bold text-slate-600 flex items-center">100%</button>
-             <button onclick="manualZoom(0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">+</button>
+            <button onclick="manualZoom(-0.1)"
+                class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">-</button>
+            <button onclick="resetZoom()"
+                class="px-3 h-10 bg-white rounded-full shadow border border-slate-200 text-xs font-bold text-slate-600 flex items-center">100%</button>
+            <button onclick="manualZoom(0.1)"
+                class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">+</button>
         </div>
     </main>
 
@@ -117,12 +263,18 @@
         <div class="bg-white rounded-xl shadow-2xl p-6 w-[500px] max-w-full m-4 border-t-4 border-indigo-600">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤖 AI 賽局建模</h2>
-                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
             </div>
             <div class="space-y-4">
                 <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded">本版本已整合環境金鑰，您無需輸入 API Key 即可直接使用。</p>
-                <textarea id="ai-prompt" rows="6" placeholder="請描述情境... 例如：我是外包商，客戶突然要求縮短工期但不加錢，若我拒絕可能會失去未來訂單..." class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
-                <button id="ai-generate-btn" onclick="generateGameFromAI()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
+                <textarea id="ai-prompt" rows="6" placeholder="請描述情境... 例如：我是外包商，客戶突然要求縮短工期但不加錢，若我拒絕可能會失去未來訂單..."
+                    class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+                <button id="ai-generate-btn" onclick="generateGameFromAI()"
+                    class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
                     <span id="ai-btn-text">開始生成賽局</span>
                     <div id="ai-spinner" class="loader hidden"></div>
                 </button>
@@ -133,13 +285,22 @@
 
     <!-- Analysis Result Modal -->
     <div id="analysis-modal" class="modal-overlay">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-w-full max-h-[85vh] m-4 border-t-4 border-amber-500 flex flex-col">
+        <div
+            class="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-w-full max-h-[85vh] m-4 border-t-4 border-amber-500 flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ AI 策略解析報告</h2>
-                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
             </div>
-            <div id="analysis-content" class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm"></div>
-            <div class="mt-4 flex justify-end"><button onclick="closeAnalysisModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">關閉報告</button></div>
+            <div id="analysis-content"
+                class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm">
+            </div>
+            <div class="mt-4 flex justify-end"><button onclick="closeAnalysisModal()"
+                    class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">關閉報告</button>
+            </div>
         </div>
     </div>
 
@@ -150,25 +311,59 @@
             <div class="mb-4">
                 <label class="block text-sm font-bold text-slate-600 mb-2">玩家數量</label>
                 <div class="flex items-center gap-3">
-                    <button onclick="changePlayerCount(-1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">-</button>
+                    <button onclick="changePlayerCount(-1)"
+                        class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">-</button>
                     <span id="player-count-display" class="text-xl font-bold text-indigo-600 w-8 text-center">2</span>
-                    <button onclick="changePlayerCount(1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">+</button>
+                    <button onclick="changePlayerCount(1)"
+                        class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">+</button>
                 </div>
             </div>
             <div id="player-names-list" class="space-y-2 max-h-48 overflow-y-auto mb-6"></div>
-            <div class="flex justify-end gap-2 border-t pt-4"><button onclick="closeSettings()" class="px-4 py-2 text-sm text-slate-500">取消</button><button onclick="applySettings()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded">儲存套用</button></div>
+            <div class="flex justify-end gap-2 border-t pt-4"><button onclick="closeSettings()"
+                    class="px-4 py-2 text-sm text-slate-500">取消</button><button onclick="applySettings()"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded">儲存套用</button></div>
         </div>
     </div>
 
-    <span id="text-measurer" style="position:absolute; visibility:hidden; white-space:nowrap; font-size:11px; padding:2px 6px;"></span>
+    <span id="text-measurer"
+        style="position:absolute; visibility:hidden; white-space:nowrap; font-size:11px; padding:2px 6px;"></span>
 
     <!-- JS Logic -->
     <script>
-        const apiKey = ""; 
-        const modelName = "gemini-2.5-flash-preview-09-2025";
-        
-        async function callGeminiAPI(payload) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const apiKey = "";
+
+        // Available free models with their characteristics
+        const AVAILABLE_MODELS = {
+            "gemini-1.5-flash": {
+                name: "Gemini 1.5 Flash",
+                description: "Fast, efficient for simple tasks",
+                strengths: ["speed", "simple_generation", "quick_analysis"],
+                contextWindow: "1M tokens"
+            },
+            "gemini-2.0-flash": {
+                name: "Gemini 2.0 Flash",
+                description: "Balanced performance with multimodal capabilities",
+                strengths: ["balanced", "structured_output", "complex_reasoning"],
+                contextWindow: "1M tokens"
+            },
+            "gemini-2.0-flash-lite": {
+                name: "Gemini 2.0 Flash Lite",
+                description: "Lightweight, fastest response for trivial tasks",
+                strengths: ["ultra_fast", "trivial_tasks", "low_latency"],
+                contextWindow: "1M tokens"
+            },
+            "gemini-2.5-flash-preview-05-20": {
+                name: "Gemini 2.5 Flash Preview",
+                description: "Most advanced reasoning, best for complex game theory",
+                strengths: ["deep_reasoning", "complex_game_structures", "strategic_analysis"],
+                contextWindow: "1M tokens"
+            }
+        };
+
+        const ROUTER_MODEL = "gemini-1.5-flash"; // Router model for selection
+
+        async function callGeminiAPI(payload, model = "gemini-2.0-flash") {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             let delay = 1000;
             for (let i = 0; i < 5; i++) {
                 try {
@@ -180,12 +375,56 @@
             }
         }
 
+        async function selectModelWithAI(userPrompt, taskType) {
+            const modelList = Object.entries(AVAILABLE_MODELS).map(([id, info]) =>
+                `- ${id}: ${info.description}. Best for: ${info.strengths.join(", ")}`
+            ).join("\n");
+
+            const selectionPrompt = `You are a model router. Analyze the user's request and select the most appropriate model.
+
+## Available Models:
+${modelList}
+
+## Task Type: ${taskType}
+
+## Selection Criteria:
+- For simple scenarios (1-2 players, straightforward choices): gemini-1.5-flash or gemini-2.0-flash-lite
+- For moderate complexity (2-3 players, branching decisions): gemini-2.0-flash
+- For complex scenarios (multi-stage games, strategic depth, intricate payoffs): gemini-2.5-flash-preview-05-20
+- For strategic analysis of existing games: gemini-2.5-flash-preview-05-20
+
+## User Request:
+${userPrompt}
+
+## Response Format:
+Respond with ONLY the model ID (e.g., "gemini-2.0-flash"). No explanation.`;
+
+            try {
+                const result = await callGeminiAPI(
+                    { contents: [{ parts: [{ text: selectionPrompt }] }] },
+                    ROUTER_MODEL
+                );
+                const selectedModel = result.trim().replace(/"/g, '').replace(/`/g, '');
+
+                // Validate the selected model exists
+                if (AVAILABLE_MODELS[selectedModel]) {
+                    console.log(`[Model Router] Selected: ${selectedModel} for task: ${taskType}`);
+                    return selectedModel;
+                }
+                console.warn(`[Model Router] Invalid selection "${selectedModel}", falling back to gemini-2.0-flash`);
+                return "gemini-2.0-flash";
+            } catch (err) {
+                console.error("[Model Router] Selection failed:", err);
+                return "gemini-2.0-flash"; // Fallback
+            }
+        }
+
         const CONFIG = { colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] };
         let gameConfig = { playerCount: 2, playerNames: ["玩家 1", "玩家 2"] };
         class Node {
             constructor(id, parentId = null) {
                 this.id = id; this.parentId = parentId; this.playerIdx = 0; this.children = [];
-                this.payoffs = Array(gameConfig.playerCount).fill(0); this.bestChildId = null; 
+                this.payoffs = Array(gameConfig.playerCount).fill(0); this.bestChildId = null;
                 this.description = ""; this.isOnEquilibriumPath = false; this.dx = 0; this.dy = 0;
             }
         }
@@ -230,7 +469,7 @@
         function onTouchEnd() { isPan = false; draggingNodeId = null; }
         function getDistance(t1, t2) { return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2)); }
         function startNodeDrag(id, x, y) { draggingNodeId = id; nodeDragStartX = x; nodeDragStartY = y; const n = findNode(treeData, id); initialNodeDx = n.dx; initialNodeDy = n.dy; }
-        function updateNodeDrag(x, y) { const n = findNode(treeData, draggingNodeId); n.dx = initialNodeDx + (x - nodeDragStartX)/scale; n.dy = initialNodeDy + (y - nodeDragStartY)/scale; document.getElementById(`node-wrapper-${draggingNodeId}`).style.transform = `translate(${n.dx}px, ${n.dy}px)`; requestAnimationFrame(drawConnections); }
+        function updateNodeDrag(x, y) { const n = findNode(treeData, draggingNodeId); n.dx = initialNodeDx + (x - nodeDragStartX) / scale; n.dy = initialNodeDy + (y - nodeDragStartY) / scale; document.getElementById(`node-wrapper-${draggingNodeId}`).style.transform = `translate(${n.dx}px, ${n.dy}px)`; requestAnimationFrame(drawConnections); }
         function manualZoom(d) { scale = Math.max(0.3, Math.min(2.5, scale + d)); applyZoom(); }
         function resetZoom() { scale = 1; applyZoom(); }
         function applyZoom() { document.getElementById('tree-root').style.transform = `scale(${scale})`; requestAnimationFrame(drawConnections); }
@@ -239,8 +478,20 @@
             const prompt = document.getElementById('ai-prompt').value.trim();
             if (!prompt) return;
             const btn = document.getElementById('ai-generate-btn'); const spinner = document.getElementById('ai-spinner'); const error = document.getElementById('ai-error-msg');
+            const btnText = document.getElementById('ai-btn-text');
             btn.disabled = true; spinner.classList.remove('hidden'); error.classList.add('hidden');
-            
+
+            // Step 1: Smart model selection
+            btnText.textContent = '🔍 正在分析情境複雜度...';
+            let selectedModel;
+            try {
+                selectedModel = await selectModelWithAI(prompt, 'game_tree_generation');
+                btnText.textContent = `🧠 使用 ${AVAILABLE_MODELS[selectedModel].name} 生成中...`;
+            } catch (selErr) {
+                selectedModel = 'gemini-2.0-flash';
+                btnText.textContent = `🧠 使用 ${AVAILABLE_MODELS[selectedModel].name} 生成中...`;
+            }
+
             // SCHEMA LOCKING START: Using ChangeLife.json as the one-shot template
             const exampleSchema = {
                 "version": "3.4.2",
@@ -280,26 +531,40 @@
             // SCHEMA LOCKING END
 
             try {
-                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nUser Scenario: " + prompt }] }] });
+                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nUser Scenario: " + prompt }] }] }, selectedModel);
                 const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 const data = JSON.parse(clean); gameConfig = data.config; treeData = restoreNodePrototype(data.tree); solveGame(); closeAiModal();
             } catch (err) { error.textContent = "生成失敗: " + err.message; error.classList.remove('hidden'); }
-            finally { btn.disabled = false; spinner.classList.add('hidden'); }
+            finally { btn.disabled = false; spinner.classList.add('hidden'); btnText.textContent = '開始生成賽局'; }
         }
 
         async function analyzeGameWithAI() {
             const modal = document.getElementById('analysis-modal'); const content = document.getElementById('analysis-content');
-            modal.classList.add('modal-active'); content.innerHTML = '<div class="flex justify-center items-center h-40"><div class="loader"></div><p class="ml-2 text-slate-500">大師正在推演局勢...</p></div>';
+            modal.classList.add('modal-active');
+            content.innerHTML = '<div class="flex flex-col justify-center items-center h-40"><div class="loader"></div><p id="analysis-status" class="ml-2 text-slate-500 mt-2">🔍 正在選擇最佳分析模型...</p></div>';
             solveGame();
+
+            // Step 1: Smart model selection based on game complexity
+            const gameJson = JSON.stringify({ config: gameConfig, tree: treeData });
+            const statusEl = document.getElementById('analysis-status');
+            let selectedModel;
+            try {
+                selectedModel = await selectModelWithAI(`Game structure with ${gameConfig.playerCount} players and tree depth analysis`, 'strategic_analysis');
+                if (statusEl) statusEl.textContent = `🧠 ${AVAILABLE_MODELS[selectedModel].name} 正在推演局勢...`;
+            } catch (selErr) {
+                selectedModel = 'gemini-2.5-flash-preview-05-20';
+                if (statusEl) statusEl.textContent = `🧠 ${AVAILABLE_MODELS[selectedModel].name} 正在推演局勢...`;
+            }
+
             const sys = `你是一位精通賽局理論的軍師。分析此 JSON 格式賽局（含納許均衡路徑）。使用繁體中文 Markdown 輸出：
             1. **局勢總結**
             2. **均衡路徑分析** (為何這是理性選擇)
             3. **異常風險** (若對手不按牌理出牌)
             4. **致勝建議**`;
             try {
-                const json = JSON.stringify({ config: gameConfig, tree: treeData });
-                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nGame Data: " + json }] }] });
-                content.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^#+\s+(.*$)/gm, '<h3>$1</h3>').replace(/\n/g, '<br>');
+                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nGame Data: " + gameJson }] }] }, selectedModel);
+                const modelBadge = `<div class="mb-3 text-xs text-slate-400 border-b pb-2">📊 分析模型: <span class="font-bold text-indigo-600">${AVAILABLE_MODELS[selectedModel].name}</span></div>`;
+                content.innerHTML = modelBadge + text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^#+\s+(.*$)/gm, '<h3>$1</h3>').replace(/\n/g, '<br>');
             } catch (err) { content.innerHTML = `<p class="text-red-500">分析失敗: ${err.message}</p>`; }
         }
 
@@ -318,11 +583,11 @@
         function buildNodeDOM(node) {
             const container = document.createElement('div'); container.className = 'tree-node-container'; container.id = `node-container-${node.id}`;
             const wrap = document.createElement('div'); wrap.className = 'node-wrapper'; wrap.id = `node-wrapper-${node.id}`; wrap.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
-            wrap.onmousedown = (e) => startNodeDrag(node.id, e.clientX, e.clientY); wrap.ontouchstart = (e) => { if(e.touches.length===1) startNodeDrag(node.id, e.touches[0].clientX, e.touches[0].clientY); };
-            
+            wrap.onmousedown = (e) => startNodeDrag(node.id, e.clientX, e.clientY); wrap.ontouchstart = (e) => { if (e.touches.length === 1) startNodeDrag(node.id, e.touches[0].clientX, e.touches[0].clientY); };
+
             if (node.parentId) { const lbl = document.createElement('input'); lbl.value = node.description; lbl.className = "dynamic-width"; setTimeout(() => adjustWidth(lbl), 0); lbl.oninput = (e) => { adjustWidth(e.target); updateNodeData(node.id, 'desc', e.target.value); }; lbl.onmousedown = (e) => e.stopPropagation(); lbl.ontouchstart = (e) => e.stopPropagation(); wrap.appendChild(lbl); }
             const box = document.createElement('div'); box.className = 'node-box ' + (node.children.length === 0 ? 'node-terminal ' : 'node-decision ') + (node.isOnEquilibriumPath ? 'highlight-equilibrium' : ''); box.id = `node-visual-${node.id}`;
-            
+
             if (node.children.length > 0) {
                 const color = CONFIG.colors[node.playerIdx % CONFIG.colors.length];
                 let opts = ''; gameConfig.playerNames.forEach((name, i) => opts += `<option value="${i}" ${node.playerIdx === i ? 'selected' : ''}>${name}</option>`);
@@ -339,8 +604,8 @@
 
         function drawConnections() {
             const svg = document.getElementById('svg-layer'); svg.innerHTML = ''; const container = document.getElementById('canvas-container');
-            const getCoords = (id) => { const el = document.getElementById(`node-visual-${id}`); if (!el) return null; const r = el.getBoundingClientRect(), cr = container.getBoundingClientRect(); return { x: r.left - cr.left + container.scrollLeft + r.width/2, y: r.top - cr.top + container.scrollTop + r.height/2, bottom: r.bottom - cr.top + container.scrollTop, top: r.top - cr.top + container.scrollTop }; };
-            const draw = (n) => { const pc = getCoords(n.id); if (!pc) return; n.children.forEach(c => { const cc = getCoords(c.id); if (!cc) return; const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const d = `M ${pc.x} ${pc.bottom} C ${pc.x} ${pc.bottom + (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top - (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top}`; path.setAttribute("d", d); let cls = "connection"; if (n.bestChildId === c.id) cls += n.isOnEquilibriumPath ? " equilibrium-path" : " off-path-optimal"; path.setAttribute("class", cls); svg.appendChild(path); draw(c); }); };
+            const getCoords = (id) => { const el = document.getElementById(`node-visual-${id}`); if (!el) return null; const r = el.getBoundingClientRect(), cr = container.getBoundingClientRect(); return { x: r.left - cr.left + container.scrollLeft + r.width / 2, y: r.top - cr.top + container.scrollTop + r.height / 2, bottom: r.bottom - cr.top + container.scrollTop, top: r.top - cr.top + container.scrollTop }; };
+            const draw = (n) => { const pc = getCoords(n.id); if (!pc) return; n.children.forEach(c => { const cc = getCoords(c.id); if (!cc) return; const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const d = `M ${pc.x} ${pc.bottom} C ${pc.x} ${pc.bottom + (cc.top - pc.bottom) / 2}, ${cc.x} ${cc.top - (cc.top - pc.bottom) / 2}, ${cc.x} ${cc.top}`; path.setAttribute("d", d); let cls = "connection"; if (n.bestChildId === c.id) cls += n.isOnEquilibriumPath ? " equilibrium-path" : " off-path-optimal"; path.setAttribute("class", cls); svg.appendChild(path); draw(c); }); };
             draw(treeData);
         }
 
@@ -398,4 +663,5 @@
         init();
     </script>
 </body>
+
 </html>
