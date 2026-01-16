@@ -1,31 +1,84 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 賽局樹求解器 V3.4.2 (範本生成版)</title>
+    <title>AI 賽局樹求解器 V4.0 (賽局管理版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: "Noto Sans TC", sans-serif; overflow: hidden; touch-action: none; background-color: #f8fafc; }
-        
-        .tree { display: flex; justify-content: center; padding: 50px 100px 300px 100px; transform-origin: center top; }
-        .tree-node-container { display: flex; flex-direction: column; align-items: center; position: relative; padding: 0 10px; } 
-        .children-container { display: flex; flex-direction: row; justify-content: center; margin-top: 60px; }
+        body {
+            font-family: "Noto Sans TC", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            background-color: #f8fafc;
+        }
 
-        .node-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 10; }
+        /* 樹狀結構佈局核心 */
+        .tree {
+            display: flex;
+            justify-content: center;
+            padding: 50px 100px 300px 100px;
+            transform-origin: center top;
+        }
+
+        .tree-node-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            padding: 0 10px;
+        }
+
+        .children-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            margin-top: 60px;
+        }
+
+        .node-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
         .node-box {
             background: white;
             position: relative;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            cursor: grab; 
+            cursor: grab;
             touch-action: none;
             transition: box-shadow 0.3s ease;
         }
-        .node-box:active { cursor: grabbing; }
-        .node-decision { border: 3px solid #3b82f6; border-radius: 9999px; padding: 8px 16px; min-width: 90px; text-align: center; }
-        .node-terminal { border: 3px solid #ef4444; border-radius: 12px; padding: 8px; min-width: 100px; }
-        
-        .highlight-equilibrium { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); border-color: #22c55e !important; background-color: #f0fdf4; font-weight: bold; }
+
+        .node-box:active {
+            cursor: grabbing;
+        }
+
+        .node-decision {
+            border: 3px solid #3b82f6;
+            border-radius: 9999px;
+            padding: 8px 16px;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        .node-terminal {
+            border: 3px solid #ef4444;
+            border-radius: 12px;
+            padding: 8px;
+            min-width: 100px;
+        }
+
+        .highlight-equilibrium {
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.9);
+            border-color: #22c55e !important;
+            background-color: #f0fdf4;
+            font-weight: bold;
+        }
 
         input.dynamic-width {
             background: rgba(255, 255, 255, 0.95);
@@ -39,58 +92,167 @@
             margin-bottom: 4px;
         }
 
-        #svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-        path.connection { fill: none; stroke: #cbd5e1; stroke-width: 2; }
-        path.equilibrium-path { stroke: #22c55e; stroke-width: 5; stroke-dasharray: 15; animation: flow 1s linear infinite; z-index: 5; }
-        path.off-path-optimal { stroke: #86efac; stroke-width: 3; stroke-dasharray: 5, 5; }
-        @keyframes flow { to { stroke-dashoffset: -30; } }
-        
-        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; z-index: 50; padding: 1rem; }
-        .modal-active { display: flex; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
 
-        .analysis-text h3 { font-size: 1.1rem; font-weight: 800; color: #4f46e5; margin-top: 1rem; margin-bottom: 0.5rem; border-left: 4px solid #4f46e5; padding-left: 8px; }
-        .analysis-text p { margin-bottom: 0.75rem; line-height: 1.6; }
+        path.connection {
+            fill: none;
+            stroke: #cbd5e1;
+            stroke-width: 2;
+        }
+
+        path.equilibrium-path {
+            stroke: #22c55e;
+            stroke-width: 5;
+            stroke-dasharray: 15;
+            animation: flow 1s linear infinite;
+            z-index: 5;
+        }
+
+        path.off-path-optimal {
+            stroke: #86efac;
+            stroke-width: 3;
+            stroke-dasharray: 5, 5;
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -30;
+            }
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+
+        .modal-active {
+            display: flex;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .analysis-text h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #4f46e5;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #4f46e5;
+            padding-left: 8px;
+        }
+
+        .analysis-text p {
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
+
 <body class="h-screen flex flex-col text-slate-800 bg-slate-50">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 shrink-0">
-        <div class="flex items-center gap-3 mb-3 lg:mb-0 w-full lg:w-auto justify-center lg:justify-start">
-            <div class="p-2 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-lg text-white shadow-md flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5c0-5.523 4.477-10 10-10z"/><path d="M8.5 8.5a2.5 2.5 0 0 0-2.5 2.5H5a4 5 0 0 0 0 9h6a4 5 0 0 0 0-9h-1a2.5 2.5 0 0 0-2.5-2.5z"/></svg>
+    <header
+        class="bg-white border-b border-slate-200 px-4 py-3 flex flex-col lg:flex-row justify-between items-center shadow-sm z-30 shrink-0 gap-3">
+        <div class="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-start">
+            <div
+                class="p-2 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-lg text-white shadow-md flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12h20" />
+                    <path d="M2 12l5-5" />
+                    <path d="M2 12l5 5" />
+                </svg>
             </div>
             <div>
-                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span class="text-blue-600 text-[10px] md:text-xs px-1 border border-blue-200 rounded align-middle">V3.4.2</span></h1>
-                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">範本生成 | 自動縮放與拖曳 | 深度策略解析</p>
+                <h1 class="text-lg md:text-xl font-bold text-slate-900 leading-tight">AI 賽局樹求解器 <span
+                        class="text-teal-600 text-[10px] md:text-xs px-1 border border-teal-200 rounded align-middle">V4.0</span>
+                </h1>
+                <p class="text-[10px] md:text-xs text-slate-500 hidden sm:block">賽局管理 | 經典範本 | 智慧分析</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto justify-center">
-            <button onclick="openAiModal()" class="px-3 py-2 text-sm font-bold text-white bg-indigo-600 rounded-full shadow hover:bg-indigo-700 transition-all flex items-center justify-center gap-1">
+        <div class="flex flex-wrap gap-2 w-full lg:w-auto justify-center items-center">
+
+            <!-- 經典賽局選單 -->
+            <div class="relative group">
+                <select onchange="loadPresetGame(this.value)"
+                    class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 outline-none cursor-pointer">
+                    <option value="" disabled selected>📂 載入經典賽局範本...</option>
+                    <option value="prisoners">👮 囚徒困境 (Prisoner's Dilemma)</option>
+                    <option value="chicken">🐔 膽小鬼賽局 (Chicken Game)</option>
+                    <option value="pigs">🐷 智豬賽局 (Boxed Pig Game)</option>
+                    <option value="sexes">👫 性別戰 (Battle of the Sexes)</option>
+                    <option value="ultimatum">💰 最後通牒 (Ultimatum Game)</option>
+                </select>
+            </div>
+
+            <!-- 檔案管理選單 -->
+            <div class="relative group">
+                <select id="file-menu" onchange="handleFileAction(this.value)"
+                    class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 outline-none cursor-pointer">
+                    <option value="" disabled selected>💾 檔案管理...</option>
+                    <option value="new">➕ 新增空白賽局</option>
+                    <option value="save">⬇️ 匯出下載 (.json)</option>
+                    <option value="load">⬆️ 讀取檔案</option>
+                    <option value="rename">✏️ 重新命名賽局</option>
+                </select>
+                <!-- 隱藏的檔案輸入框 -->
+                <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importGameFile(this)">
+            </div>
+
+            <div class="h-6 w-px bg-slate-300 mx-1"></div>
+
+            <button onclick="openAiModal()"
+                class="px-3 py-2 text-sm font-bold text-white bg-indigo-600 rounded-full shadow hover:bg-indigo-700 transition-all flex items-center justify-center gap-1">
                 <span>🤖 AI 生成</span>
             </button>
-            
-            <button onclick="analyzeGameWithAI()" class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1">
+
+            <button onclick="analyzeGameWithAI()"
+                class="px-3 py-2 text-sm font-bold text-white bg-amber-500 rounded-full shadow hover:bg-amber-600 transition-all flex items-center justify-center gap-1">
                 <span>✨ 策略分析</span>
             </button>
 
-            <button onclick="openSettings()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
+            <button onclick="openSettings()"
+                class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
                 設定
             </button>
-            
-            <button onclick="saveGame()" class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1">
-                儲存
-            </button>
-            
-            <label class="px-3 py-2 text-xs md:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center justify-center gap-1 cursor-pointer">
-                匯入
-                <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importGame(this)">
-            </label>
 
-            <button onclick="solveGame()" class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 flex items-center justify-center gap-1">
+            <button onclick="solveGame()"
+                class="col-span-2 sm:col-span-1 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded shadow hover:bg-green-700 flex items-center justify-center gap-1">
                 計算路徑
             </button>
         </div>
@@ -98,17 +260,27 @@
 
     <!-- Main Canvas -->
     <main class="flex-1 relative overflow-hidden bg-slate-50">
+        <!-- 賽局名稱標題 -->
+        <div id="game-title-display"
+            class="absolute top-4 left-4 z-10 text-lg font-bold text-slate-400 select-none pointer-events-none transition-all">
+            未命名賽局
+        </div>
+
         <div id="canvas-container" class="w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
             <svg id="svg-layer"></svg>
-            <div id="tree-root" class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
+            <div id="tree-root"
+                class="tree min-w-max min-h-max transform transition-transform duration-75 origin-top-center">
                 <!-- Tree Injected Here -->
             </div>
         </div>
 
         <div class="absolute bottom-6 right-6 z-20 flex gap-2">
-             <button onclick="manualZoom(-0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">-</button>
-             <button onclick="resetZoom()" class="px-3 h-10 bg-white rounded-full shadow border border-slate-200 text-xs font-bold text-slate-600 flex items-center">100%</button>
-             <button onclick="manualZoom(0.1)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">+</button>
+            <button onclick="manualZoom(-0.1)"
+                class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">-</button>
+            <button onclick="resetZoom()"
+                class="px-3 h-10 bg-white rounded-full shadow border border-slate-200 text-xs font-bold text-slate-600 flex items-center">100%</button>
+            <button onclick="manualZoom(0.1)"
+                class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow border border-slate-200 text-slate-600 font-bold">+</button>
         </div>
     </main>
 
@@ -117,12 +289,18 @@
         <div class="bg-white rounded-xl shadow-2xl p-6 w-[500px] max-w-full m-4 border-t-4 border-indigo-600">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤖 AI 賽局建模</h2>
-                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <button onclick="closeAiModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
             </div>
             <div class="space-y-4">
                 <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded">本版本已整合環境金鑰，您無需輸入 API Key 即可直接使用。</p>
-                <textarea id="ai-prompt" rows="6" placeholder="請描述情境... 例如：我是外包商，客戶突然要求縮短工期但不加錢，若我拒絕可能會失去未來訂單..." class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
-                <button id="ai-generate-btn" onclick="generateGameFromAI()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
+                <textarea id="ai-prompt" rows="6" placeholder="請描述情境... 例如：我是外包商，客戶突然要求縮短工期但不加錢，若我拒絕可能會失去未來訂單..."
+                    class="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+                <button id="ai-generate-btn" onclick="generateGameFromAI()"
+                    class="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
                     <span id="ai-btn-text">開始生成賽局</span>
                     <div id="ai-spinner" class="loader hidden"></div>
                 </button>
@@ -133,13 +311,22 @@
 
     <!-- Analysis Result Modal -->
     <div id="analysis-modal" class="modal-overlay">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-w-full max-h-[85vh] m-4 border-t-4 border-amber-500 flex flex-col">
+        <div
+            class="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-w-full max-h-[85vh] m-4 border-t-4 border-amber-500 flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ AI 策略解析報告</h2>
-                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <button onclick="closeAnalysisModal()" class="text-slate-400 hover:text-slate-600"><svg class="w-6 h-6"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg></button>
             </div>
-            <div id="analysis-content" class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm"></div>
-            <div class="mt-4 flex justify-end"><button onclick="closeAnalysisModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">關閉報告</button></div>
+            <div id="analysis-content"
+                class="analysis-text flex-1 bg-slate-50 p-4 rounded-lg border border-slate-200 overflow-y-auto text-sm">
+            </div>
+            <div class="mt-4 flex justify-end"><button onclick="closeAnalysisModal()"
+                    class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded hover:bg-slate-300">關閉報告</button>
+            </div>
         </div>
     </div>
 
@@ -150,25 +337,51 @@
             <div class="mb-4">
                 <label class="block text-sm font-bold text-slate-600 mb-2">玩家數量</label>
                 <div class="flex items-center gap-3">
-                    <button onclick="changePlayerCount(-1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">-</button>
+                    <button onclick="changePlayerCount(-1)"
+                        class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">-</button>
                     <span id="player-count-display" class="text-xl font-bold text-indigo-600 w-8 text-center">2</span>
-                    <button onclick="changePlayerCount(1)" class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">+</button>
+                    <button onclick="changePlayerCount(1)"
+                        class="w-8 h-8 rounded bg-slate-100 font-bold text-slate-600">+</button>
                 </div>
             </div>
-            <div id="player-names-list" class="space-y-2 max-h-48 overflow-y-auto mb-6"></div>
-            <div class="flex justify-end gap-2 border-t pt-4"><button onclick="closeSettings()" class="px-4 py-2 text-sm text-slate-500">取消</button><button onclick="applySettings()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded">儲存套用</button></div>
+            <div id="player-names-list" class="space-y-2 max-h-48 overflow-y-auto mb-4"></div>
+
+            <div class="border-t pt-4 mt-2">
+                <h3 class="text-sm font-bold text-slate-600 mb-2">AI 模型配置</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 uppercase font-bold">Gemini API Key</label>
+                        <input type="password" id="setting-api-key" placeholder="貼上您的 API Key..."
+                            class="w-full border p-2 rounded text-sm outline-none focus:ring-1">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 uppercase font-bold">模型名稱</label>
+                        <input type="text" id="setting-model-name" placeholder="例如: gemini-2.0-flash-exp"
+                            class="w-full border p-2 rounded text-sm outline-none focus:ring-1">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 border-t pt-4"><button onclick="closeSettings()"
+                    class="px-4 py-2 text-sm text-slate-500">取消</button><button onclick="applySettings()"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded">儲存套用</button></div>
         </div>
     </div>
 
-    <span id="text-measurer" style="position:absolute; visibility:hidden; white-space:nowrap; font-size:11px; padding:2px 6px;"></span>
+    <span id="text-measurer"
+        style="position:absolute; visibility:hidden; white-space:nowrap; font-size:11px; padding:2px 6px;"></span>
 
     <!-- JS Logic -->
     <script>
-        const apiKey = ""; 
-        const modelName = "gemini-2.5-flash-preview-09-2025";
-        
+        let apiKey = "";
+        let modelName = "gemini-2.0-flash-exp";
+
         async function callGeminiAPI(payload) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const currentApiKey = apiKey || localStorage.getItem('gametree_api_key') || "";
+            const currentModel = modelName || localStorage.getItem('gametree_model_name') || "gemini-2.0-flash-exp";
+
+            if (!currentApiKey) throw new Error("缺少 API Key，請至設定中配置。");
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${currentApiKey}`;
             let delay = 1000;
             for (let i = 0; i < 5; i++) {
                 try {
@@ -181,17 +394,145 @@
         }
 
         const CONFIG = { colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] };
-        let gameConfig = { playerCount: 2, playerNames: ["玩家 1", "玩家 2"] };
+        let gameConfig = { playerCount: 2, playerNames: ["囚徒 A", "囚徒 B"], gameName: "囚徒困境 (預設)" };
         class Node {
             constructor(id, parentId = null) {
                 this.id = id; this.parentId = parentId; this.playerIdx = 0; this.children = [];
-                this.payoffs = Array(gameConfig.playerCount).fill(0); this.bestChildId = null; 
+                this.payoffs = Array(gameConfig.playerCount).fill(0); this.bestChildIds = [];
                 this.description = ""; this.isOnEquilibriumPath = false; this.dx = 0; this.dy = 0;
             }
         }
         let treeData = null, scale = 1, isPan = false, panStartX, panStartY, scrollLeft, scrollTop, draggingNodeId = null, nodeDragStartX, nodeDragStartY, initialNodeDx, initialNodeDy, initialPinchDistance = 0, initialScale = 1;
 
-        function init() { treeData = new Node('root'); addChild(treeData); addChild(treeData); renderTree(); setupEventListeners(); }
+        // V4.0 Change: Init with Prisoner's Dilemma
+        function init() {
+            // Load persistent settings
+            const savedKey = localStorage.getItem('gametree_api_key');
+            const savedModel = localStorage.getItem('gametree_model_name');
+            if (savedKey) apiKey = savedKey;
+            if (savedModel) modelName = savedModel;
+
+            loadPresetGame('prisoners');
+            setupEventListeners();
+        }
+
+        // --- File & Preset Logic (V4.0 New Features) ---
+
+        function handleFileAction(action) {
+            const select = document.getElementById('file-menu');
+            select.value = ""; // Reset dropdown
+
+            if (action === 'new') {
+                if (confirm("確定要開新賽局嗎？未儲存的進度將遺失。")) {
+                    gameConfig = { playerCount: 2, playerNames: ["玩家 1", "玩家 2"], gameName: "新賽局" };
+                    treeData = new Node('root');
+                    addChild(treeData); addChild(treeData); // Basic structure
+                    renderTree();
+                }
+            } else if (action === 'save') {
+                saveGame();
+            } else if (action === 'load') {
+                document.getElementById('fileInput').click();
+            } else if (action === 'rename') {
+                const newName = prompt("請輸入新的賽局名稱：", gameConfig.gameName);
+                if (newName) {
+                    gameConfig.gameName = newName;
+                    renderTree(); // Updates title display
+                }
+            }
+        }
+
+        function loadPresetGame(type) {
+            // Preset Data Templates
+            if (type === 'prisoners') {
+                gameConfig = { playerCount: 2, playerNames: ["囚徒 A", "囚徒 B"], gameName: "囚徒困境" };
+                treeData = new Node('root'); treeData.playerIdx = 0; treeData.description = "A 的選擇";
+
+                let c1 = new Node('n1', 'root'); c1.description = "抵賴 (合作)"; c1.playerIdx = 1;
+                let c2 = new Node('n2', 'root'); c2.description = "招供 (背叛)"; c2.playerIdx = 1;
+                treeData.children = [c1, c2];
+
+                // A Cooperates
+                let c1_1 = new Node('n1_1', 'n1'); c1_1.description = "抵賴"; c1_1.payoffs = [-1, -1];
+                let c1_2 = new Node('n1_2', 'n1'); c1_2.description = "招供"; c1_2.payoffs = [-10, 0];
+                c1.children = [c1_1, c1_2];
+
+                // A Defects
+                let c2_1 = new Node('n2_1', 'n2'); c2_1.description = "抵賴"; c2_1.payoffs = [0, -10];
+                let c2_2 = new Node('n2_2', 'n2'); c2_2.description = "招供"; c2_2.payoffs = [-5, -5];
+                c2.children = [c2_1, c2_2];
+
+            } else if (type === 'chicken') {
+                gameConfig = { playerCount: 2, playerNames: ["駕駛 A", "駕駛 B"], gameName: "膽小鬼賽局" };
+                treeData = new Node('root'); treeData.playerIdx = 0; treeData.description = "A 的選擇";
+                let c1 = new Node('c1', 'root'); c1.description = "轉彎 (膽小)"; c1.playerIdx = 1;
+                let c2 = new Node('c2', 'root'); c2.description = "直衝 (勇敢)"; c2.playerIdx = 1;
+                treeData.children = [c1, c2];
+                c1.children = [
+                    Object.assign(new Node('c1_1', 'c1'), { description: "轉彎", payoffs: [0, 0] }),
+                    Object.assign(new Node('c1_2', 'c1'), { description: "直衝", payoffs: [-2, 2] })
+                ];
+                c2.children = [
+                    Object.assign(new Node('c2_1', 'c2'), { description: "轉彎", payoffs: [2, -2] }),
+                    Object.assign(new Node('c2_2', 'c2'), { description: "直衝", payoffs: [-10, -10] })
+                ];
+
+            } else if (type === 'pigs') {
+                gameConfig = { playerCount: 2, playerNames: ["大豬", "小豬"], gameName: "智豬賽局" };
+                treeData = new Node('root'); treeData.playerIdx = 0; treeData.description = "大豬決策";
+                let c1 = new Node('p1', 'root'); c1.description = "按按鈕"; c1.playerIdx = 1;
+                let c2 = new Node('p2', 'root'); c2.description = "等待"; c2.playerIdx = 1;
+                treeData.children = [c1, c2];
+                c1.children = [
+                    Object.assign(new Node('p1_1', 'p1'), { description: "按按鈕", payoffs: [5, 1] }),
+                    Object.assign(new Node('p1_2', 'p1'), { description: "等待", payoffs: [4, 4] })
+                ];
+                c2.children = [
+                    Object.assign(new Node('p2_1', 'p2'), { description: "按按鈕", payoffs: [9, -1] }),
+                    Object.assign(new Node('p2_2', 'p2'), { description: "等待", payoffs: [0, 0] })
+                ];
+
+            } else if (type === 'sexes') {
+                gameConfig = { playerCount: 2, playerNames: ["丈夫", "妻子"], gameName: "性別戰" };
+                treeData = new Node('root'); treeData.playerIdx = 0; treeData.description = "丈夫選擇";
+                let c1 = new Node('s1', 'root'); c1.description = "看球賽"; c1.playerIdx = 1;
+                let c2 = new Node('s2', 'root'); c2.description = "聽歌劇"; c2.playerIdx = 1;
+                treeData.children = [c1, c2];
+                c1.children = [
+                    Object.assign(new Node('s1_1', 's1'), { description: "看球賽", payoffs: [3, 2] }),
+                    Object.assign(new Node('s1_2', 's1'), { description: "聽歌劇", payoffs: [0, 0] })
+                ];
+                c2.children = [
+                    Object.assign(new Node('s2_1', 's2'), { description: "看球賽", payoffs: [0, 0] }),
+                    Object.assign(new Node('s2_2', 's2'), { description: "聽歌劇", payoffs: [2, 3] })
+                ];
+            } else if (type === 'ultimatum') {
+                gameConfig = { playerCount: 2, playerNames: ["提議者", "回應者"], gameName: "最後通牒" };
+                treeData = new Node('root'); treeData.playerIdx = 0; treeData.description = "分配 100 元";
+                let c1 = new Node('u1', 'root'); c1.description = "公平 (50:50)"; c1.playerIdx = 1;
+                let c2 = new Node('u2', 'root'); c2.description = "不公 (90:10)"; c2.playerIdx = 1;
+                treeData.children = [c1, c2];
+                c1.children = [
+                    Object.assign(new Node('u1_1', 'u1'), { description: "接受", payoffs: [50, 50] }),
+                    Object.assign(new Node('u1_2', 'u1'), { description: "拒絕", payoffs: [0, 0] })
+                ];
+                c2.children = [
+                    Object.assign(new Node('u2_1', 'u2'), { description: "接受", payoffs: [90, 10] }),
+                    Object.assign(new Node('u2_2', 'u2'), { description: "拒絕", payoffs: [0, 0] })
+                ];
+            }
+
+            // Reset view
+            scale = 1;
+            document.getElementById('tree-root').style.transform = `scale(1)`;
+            solveGame();
+
+            // Reset dropdown to placeholder (so user can re-select same game)
+            const select = document.querySelector('select[onchange="loadPresetGame(this.value)"]');
+            if (select) select.value = "";
+        }
+
+        // --- Standard Logic ---
 
         function setupEventListeners() {
             const container = document.getElementById('canvas-container');
@@ -220,7 +561,7 @@
             if (e.target.closest('button') || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
             e.preventDefault();
             if (e.touches.length === 2) { initialPinchDistance = getDistance(e.touches[0], e.touches[1]); initialScale = scale; }
-            else { const touch = e.touches[0]; const nw = e.target.closest('.node-wrapper'); if (nw) startNodeDrag(nw.id.replace('node-wrapper-', ''), touch.clientX, touch.clientY); else { isPan = true; panStartX = touch.clientX; panStartY = touch.clientY; scrollLeft = document.getElementById('canvas-container').scrollLeft; scrollTop = document.getElementById('canvas-container').scrollTop; } }
+            else { const t = e.touches[0]; const nw = e.target.closest('.node-wrapper'); if (nw) startNodeDrag(nw.id.replace('node-wrapper-', ''), t.clientX, t.clientY); else { isPan = true; panStartX = t.clientX; panStartY = t.clientY; scrollLeft = document.getElementById('canvas-container').scrollLeft; scrollTop = document.getElementById('canvas-container').scrollTop; } }
         }
         function onTouchMove(e) {
             if (e.touches.length === 2) { const dist = getDistance(e.touches[0], e.touches[1]); scale = Math.max(0.3, Math.min(2.5, initialScale + (dist - initialPinchDistance) * 0.005)); applyZoom(); }
@@ -230,7 +571,7 @@
         function onTouchEnd() { isPan = false; draggingNodeId = null; }
         function getDistance(t1, t2) { return Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2)); }
         function startNodeDrag(id, x, y) { draggingNodeId = id; nodeDragStartX = x; nodeDragStartY = y; const n = findNode(treeData, id); initialNodeDx = n.dx; initialNodeDy = n.dy; }
-        function updateNodeDrag(x, y) { const n = findNode(treeData, draggingNodeId); n.dx = initialNodeDx + (x - nodeDragStartX)/scale; n.dy = initialNodeDy + (y - nodeDragStartY)/scale; document.getElementById(`node-wrapper-${draggingNodeId}`).style.transform = `translate(${n.dx}px, ${n.dy}px)`; requestAnimationFrame(drawConnections); }
+        function updateNodeDrag(x, y) { const n = findNode(treeData, draggingNodeId); n.dx = initialNodeDx + (x - nodeDragStartX) / scale; n.dy = initialNodeDy + (y - nodeDragStartY) / scale; document.getElementById(`node-wrapper-${draggingNodeId}`).style.transform = `translate(${n.dx}px, ${n.dy}px)`; requestAnimationFrame(drawConnections); }
         function manualZoom(d) { scale = Math.max(0.3, Math.min(2.5, scale + d)); applyZoom(); }
         function resetZoom() { scale = 1; applyZoom(); }
         function applyZoom() { document.getElementById('tree-root').style.transform = `scale(${scale})`; requestAnimationFrame(drawConnections); }
@@ -240,47 +581,34 @@
             if (!prompt) return;
             const btn = document.getElementById('ai-generate-btn'); const spinner = document.getElementById('ai-spinner'); const error = document.getElementById('ai-error-msg');
             btn.disabled = true; spinner.classList.remove('hidden'); error.classList.add('hidden');
-            
-            // SCHEMA LOCKING START: Using ChangeLife.json as the one-shot template
+
+            // SCHEMA LOCKING START
             const exampleSchema = {
-                "version": "3.4.2",
+                "version": "4.0",
                 "timestamp": "ISO_DATE",
                 "config": {
                     "playerCount": 2,
-                    "playerNames": ["P1 (Role)", "P2 (Role)"]
+                    "playerNames": ["P1", "P2"],
+                    "gameName": "AI Generated Game"
                 },
                 "tree": {
-                    "id": "root",
-                    "parentId": null,
-                    "playerIdx": 0,
-                    "description": "Situation description",
-                    "payoffs": [0, 0],
-                    "children": [
-                        {
-                            "id": "L1_ActionA",
-                            "parentId": "root",
-                            "playerIdx": 1,
-                            "description": "Action A description",
-                            "payoffs": [10, -5],
-                            "children": []
-                        }
-                    ]
+                    "id": "root", "parentId": null, "playerIdx": 0, "description": "Desc", "payoffs": [0, 0],
+                    "children": [{ "id": "L1", "parentId": "root", "playerIdx": 1, "description": "Desc", "payoffs": [10, -5], "children": [] }]
                 }
             };
 
-            const sys = `You are a Game Theory Expert. Analyze the user scenario and output ONLY valid JSON matching this exact schema structure:
+            const sys = `You are a Game Theory Expert. Analyze the user scenario and output ONLY a valid JSON object matching this schema structure:
             ${JSON.stringify(exampleSchema)}
             
-            RULES:
-            1. Output JSON ONLY. No markdown blocks.
-            2. Follow the nesting structure of 'children' for the game tree.
-            3. 'playerIdx' is 0-based.
-            4. 'payoffs' must be an array of numbers.
-            5. Create meaningful depth (at least 3 levels recommended for interesting games).`;
-            // SCHEMA LOCKING END
+            CRITICAL RULES:
+            1. Response must be strictly valid JSON.
+            2. NO markdown formatting, NO triple backticks, NO "json" prefix.
+            3. Ensure 'playerIdx' is 0-based and corresponds to the active player at that node.
+            4. 'payoffs' must be an array of numbers with length matching gameConfig.playerCount.
+            5. Create interesting depth (at least 3-4 levels) to show strategic complexity.`;
 
             try {
-                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nUser Scenario: " + prompt }] }] });
+                const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nScenario: " + prompt }] }] });
                 const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 const data = JSON.parse(clean); gameConfig = data.config; treeData = restoreNodePrototype(data.tree); solveGame(); closeAiModal();
             } catch (err) { error.textContent = "生成失敗: " + err.message; error.classList.remove('hidden'); }
@@ -291,11 +619,15 @@
             const modal = document.getElementById('analysis-modal'); const content = document.getElementById('analysis-content');
             modal.classList.add('modal-active'); content.innerHTML = '<div class="flex justify-center items-center h-40"><div class="loader"></div><p class="ml-2 text-slate-500">大師正在推演局勢...</p></div>';
             solveGame();
-            const sys = `你是一位精通賽局理論的軍師。分析此 JSON 格式賽局（含納許均衡路徑）。使用繁體中文 Markdown 輸出：
-            1. **局勢總結**
-            2. **均衡路徑分析** (為何這是理性選擇)
-            3. **異常風險** (若對手不按牌理出牌)
-            4. **致勝建議**`;
+            const sys = `你是一位精通賽局理論的策略大師。請分析以下提供的 JSON 格式賽局數據（已包含納許均衡計算結果）。
+            請使用繁體中文與 Markdown 格式產出深度解析報告：
+            
+            1. **核心局勢與利益衝突**：描述各方的目標與關鍵矛盾。
+            2. **最優策略路徑分析**：解釋為什麼均衡路徑（Equilibrium Path）是理性的選擇，並指出關鍵的轉折點。
+            3. **偏離路徑的後果 (Risk/Threat)**：分析如果有人不按理出牌（選擇非均衡分支），會對各方產生什麼具體的利益損失。
+            4. **致勝心法或談判建議**：基於數據提供的具體行動建議。
+            
+            請確保內容專業、精準且具備可操作性。`;
             try {
                 const json = JSON.stringify({ config: gameConfig, tree: treeData });
                 const text = await callGeminiAPI({ contents: [{ parts: [{ text: sys + "\n\nGame Data: " + json }] }] });
@@ -306,28 +638,58 @@
         function findNode(n, id) { if (n.id === id) return n; for (let c of n.children) { let f = findNode(c, id); if (f) return f; } return null; }
         function restoreNodePrototype(n) { n.isOnEquilibriumPath = false; if (n.dx === undefined) n.dx = 0; if (n.dy === undefined) n.dy = 0; if (n.children) n.children.forEach(restoreNodePrototype); if (n.payoffs.length !== gameConfig.playerCount) { const p = Array(gameConfig.playerCount).fill(0); n.payoffs.forEach((v, i) => { if (i < p.length) p[i] = v; }); n.payoffs = p; } return n; }
         function solveGame() { clearSol(treeData); backwardInduction(treeData); tracePath(treeData); renderTree(); }
-        function clearSol(n) { n.bestChildId = null; n.isOnEquilibriumPath = false; n.children.forEach(clearSol); }
-        function backwardInduction(n) { if (n.children.length === 0) return [...n.payoffs]; let bestV = -Infinity, bestP = null, bestId = null, idx = n.playerIdx; for (let c of n.children) { let res = backwardInduction(c); if (res[idx] > bestV) { bestV = res[idx]; bestP = res; bestId = c.id; } else if (bestV === -Infinity) { bestV = res[idx]; bestP = res; bestId = c.id; } } n.bestChildId = bestId; return bestP; }
-        function tracePath(n) { n.isOnEquilibriumPath = true; if (n.bestChildId) { let c = n.children.find(x => x.id === n.bestChildId); if (c) tracePath(c); } }
+        function clearSol(n) { n.bestChildIds = []; n.isOnEquilibriumPath = false; n.children.forEach(clearSol); }
+        function backwardInduction(n) {
+            if (n.children.length === 0) return [...n.payoffs];
+            const EPSILON = 1e-10;
+            let bestV = -Infinity, bestP = null, idx = n.playerIdx;
+            n.bestChildIds = [];
+
+            for (let c of n.children) {
+                let res = backwardInduction(c);
+                if (res[idx] > bestV + EPSILON) {
+                    bestV = res[idx]; bestP = res; n.bestChildIds = [c.id];
+                } else if (Math.abs(res[idx] - bestV) < EPSILON) {
+                    n.bestChildIds.push(c.id);
+                } else if (bestV === -Infinity) {
+                    bestV = res[idx]; bestP = res; n.bestChildIds = [c.id];
+                }
+            }
+            return bestP;
+        }
+        function tracePath(n) {
+            n.isOnEquilibriumPath = true;
+            if (n.bestChildIds && n.bestChildIds.length > 0) {
+                // If there are multiple paths, we trace all of them
+                n.bestChildIds.forEach(id => {
+                    let c = n.children.find(x => x.id === id);
+                    if (c) tracePath(c);
+                });
+            }
+        }
         function addChild(p) { const id = 'n-' + Math.random().toString(36).substr(2, 9); const n = new Node(id, p.id); n.description = `選項 ${p.children.length + 1}`; n.playerIdx = (p.playerIdx + 1) % gameConfig.playerCount; p.children.push(n); renderTree(); }
         function removeNode(id, pid) { if (!pid) return; const p = findNode(treeData, pid); p.children = p.children.filter(c => c.id !== id); renderTree(); }
         function updateNodeData(id, t, v, i = 0) { const n = findNode(treeData, id); if (!n) return; if (t === 'desc') n.description = v; else if (t === 'playerIdx') n.playerIdx = parseInt(v); else if (t === 'payoff') n.payoffs[i] = parseFloat(v) || 0; if (t !== 'desc') { clearSol(treeData); renderTree(); } }
         function adjustWidth(input) { const m = document.getElementById('text-measurer'); m.textContent = input.value || input.placeholder; input.style.width = Math.max(50, m.offsetWidth + 12) + 'px'; }
 
-        function renderTree() { const root = document.getElementById('tree-root'); root.innerHTML = ''; root.appendChild(buildNodeDOM(treeData)); requestAnimationFrame(drawConnections); }
+        function renderTree() {
+            const root = document.getElementById('tree-root'); root.innerHTML = ''; root.appendChild(buildNodeDOM(treeData));
+            document.getElementById('game-title-display').textContent = gameConfig.gameName || "未命名賽局";
+            requestAnimationFrame(drawConnections);
+        }
         function buildNodeDOM(node) {
             const container = document.createElement('div'); container.className = 'tree-node-container'; container.id = `node-container-${node.id}`;
             const wrap = document.createElement('div'); wrap.className = 'node-wrapper'; wrap.id = `node-wrapper-${node.id}`; wrap.style.transform = `translate(${node.dx}px, ${node.dy}px)`;
-            wrap.onmousedown = (e) => startNodeDrag(node.id, e.clientX, e.clientY); wrap.ontouchstart = (e) => { if(e.touches.length===1) startNodeDrag(node.id, e.touches[0].clientX, e.touches[0].clientY); };
-            
+            wrap.onmousedown = (e) => startNodeDrag(node.id, e.clientX, e.clientY); wrap.ontouchstart = (e) => { if (e.touches.length === 1) startNodeDrag(node.id, e.touches[0].clientX, e.touches[0].clientY); };
+
             if (node.parentId) { const lbl = document.createElement('input'); lbl.value = node.description; lbl.className = "dynamic-width"; setTimeout(() => adjustWidth(lbl), 0); lbl.oninput = (e) => { adjustWidth(e.target); updateNodeData(node.id, 'desc', e.target.value); }; lbl.onmousedown = (e) => e.stopPropagation(); lbl.ontouchstart = (e) => e.stopPropagation(); wrap.appendChild(lbl); }
             const box = document.createElement('div'); box.className = 'node-box ' + (node.children.length === 0 ? 'node-terminal ' : 'node-decision ') + (node.isOnEquilibriumPath ? 'highlight-equilibrium' : ''); box.id = `node-visual-${node.id}`;
-            
+
             if (node.children.length > 0) {
                 const color = CONFIG.colors[node.playerIdx % CONFIG.colors.length];
                 let opts = ''; gameConfig.playerNames.forEach((name, i) => opts += `<option value="${i}" ${node.playerIdx === i ? 'selected' : ''}>${name}</option>`);
                 box.style.borderColor = color;
-                box.innerHTML = `<div class="mb-1"><select onchange="updateNodeData('${node.id}', 'playerIdx', this.value)" class="bg-transparent font-bold text-sm text-center outline-none" style="color: ${color}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">${opts}</select></div><div class="flex justify-center mt-1 pt-1 border-t border-slate-100"><button onclick="addChild(findNode(treeData, '${node.id}'))" class="text-xs text-blue-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">+</button>${node.parentId ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs text-red-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">×</button>` : ''}</div>`;
+                box.innerHTML = `<div class="mb-1"><select onchange="updateNodeData('${node.id}', 'playerIdx', this.value)" class="bg-transparent font-bold text-sm text-center outline-none cursor-pointer" style="color: ${color}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">${opts}</select></div><div class="flex justify-center mt-1 pt-1 border-t border-slate-100"><button onclick="addChild(findNode(treeData, '${node.id}'))" class="text-xs text-blue-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">+</button>${node.parentId ? `<button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-xs text-red-600 px-1" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">×</button>` : ''}</div>`;
             } else {
                 let pays = ''; gameConfig.playerNames.forEach((n, i) => pays += `<div class="flex items-center gap-1 text-[10px] font-bold" style="color:${CONFIG.colors[i % CONFIG.colors.length]}"><span>${n[0]}:</span><input type="number" value="${node.payoffs[i]}" class="editable-payoff w-8" onchange="updateNodeData('${node.id}', 'payoff', this.value, ${i})" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"></div>`);
                 box.innerHTML = `<div class="grid grid-cols-2 gap-1">${pays}</div><div class="flex justify-between mt-1 pt-1 border-t border-slate-100"><button onclick="addChild(findNode(treeData, '${node.id}'))" class="text-[9px] text-blue-500" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">擴</button><button onclick="removeNode('${node.id}', '${node.parentId}')" class="text-[9px] text-red-500" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">刪</button></div>`;
@@ -338,64 +700,109 @@
         }
 
         function drawConnections() {
-            const svg = document.getElementById('svg-layer'); svg.innerHTML = ''; const container = document.getElementById('canvas-container');
-            const getCoords = (id) => { const el = document.getElementById(`node-visual-${id}`); if (!el) return null; const r = el.getBoundingClientRect(), cr = container.getBoundingClientRect(); return { x: r.left - cr.left + container.scrollLeft + r.width/2, y: r.top - cr.top + container.scrollTop + r.height/2, bottom: r.bottom - cr.top + container.scrollTop, top: r.top - cr.top + container.scrollTop }; };
-            const draw = (n) => { const pc = getCoords(n.id); if (!pc) return; n.children.forEach(c => { const cc = getCoords(c.id); if (!cc) return; const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const d = `M ${pc.x} ${pc.bottom} C ${pc.x} ${pc.bottom + (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top - (cc.top - pc.bottom)/2}, ${cc.x} ${cc.top}`; path.setAttribute("d", d); let cls = "connection"; if (n.bestChildId === c.id) cls += n.isOnEquilibriumPath ? " equilibrium-path" : " off-path-optimal"; path.setAttribute("class", cls); svg.appendChild(path); draw(c); }); };
+            const svg = document.getElementById('svg-layer');
+            svg.innerHTML = '';
+            const container = document.getElementById('canvas-container');
+            const containerRect = container.getBoundingClientRect();
+            const scrollLeft = container.scrollLeft;
+            const scrollTop = container.scrollTop;
+
+            // Pre-calculate all coordinates to avoid layout thrashing
+            const nodeCoords = new Map();
+            const boxes = document.querySelectorAll('.node-box');
+            boxes.forEach(el => {
+                const id = el.id.replace('node-visual-', '');
+                const r = el.getBoundingClientRect();
+                nodeCoords.set(id, {
+                    x: r.left - containerRect.left + scrollLeft + r.width / 2,
+                    y: r.top - containerRect.top + scrollTop + r.height / 2,
+                    bottom: r.bottom - containerRect.top + scrollTop,
+                    top: r.top - containerRect.top + scrollTop
+                });
+            });
+
+            const draw = (n) => {
+                const pc = nodeCoords.get(n.id);
+                if (!pc) return;
+                n.children.forEach(c => {
+                    const cc = nodeCoords.get(c.id);
+                    if (!cc) return;
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    // Use a cubic bezier curve for smoother connections
+                    const d = `M ${pc.x} ${pc.bottom} C ${pc.x} ${pc.bottom + (cc.top - pc.bottom) / 2}, ${cc.x} ${cc.top - (cc.top - pc.bottom) / 2}, ${cc.x} ${cc.top}`;
+                    path.setAttribute("d", d);
+                    let cls = "connection";
+                    if (n.bestChildIds && n.bestChildIds.includes(c.id)) {
+                        cls += n.isOnEquilibriumPath ? " equilibrium-path" : " off-path-optimal";
+                    }
+                    path.setAttribute("class", cls);
+                    svg.appendChild(path);
+                    draw(c);
+                });
+            };
             draw(treeData);
         }
 
-        // Settings Logic - Fixed Bug
         let tempConfig = {};
         function openSettings() {
             tempConfig = JSON.parse(JSON.stringify(gameConfig));
             renderSettingsUI();
+
+            // Populate AI settings
+            document.getElementById('setting-api-key').value = localStorage.getItem('gametree_api_key') || "";
+            document.getElementById('setting-model-name').value = localStorage.getItem('gametree_model_name') || "gemini-2.0-flash-exp";
+
             document.getElementById('settings-modal').classList.add('modal-active');
         }
-        function renderSettingsUI() {
-            const list = document.getElementById('player-names-list'); list.innerHTML = '';
-            tempConfig.playerNames.forEach((n, i) => {
-                const div = document.createElement('div'); div.className = "flex items-center gap-2";
-                div.innerHTML = `<div class="w-4 h-4 rounded-full shrink-0" style="background:${CONFIG.colors[i % CONFIG.colors.length]}"></div><input value="${n}" class="flex-1 border p-1 rounded text-sm outline-none focus:ring-1" oninput="tempConfig.playerNames[${i}]=this.value">`;
-                list.appendChild(div);
-            });
-            document.getElementById('player-count-display').textContent = tempConfig.playerCount;
-        }
+        function renderSettingsUI() { const list = document.getElementById('player-names-list'); list.innerHTML = ''; tempConfig.playerNames.forEach((n, i) => { const div = document.createElement('div'); div.className = "flex items-center gap-2"; div.innerHTML = `<div class="w-4 h-4 rounded-full shrink-0" style="background:${CONFIG.colors[i % CONFIG.colors.length]}"></div><input value="${n}" class="flex-1 border p-1 rounded text-sm outline-none focus:ring-1" oninput="tempConfig.playerNames[${i}]=this.value">`; list.appendChild(div); }); document.getElementById('player-count-display').textContent = tempConfig.playerCount; }
         function closeSettings() { document.getElementById('settings-modal').classList.remove('modal-active'); }
-        function changePlayerCount(d) {
-            let newCount = tempConfig.playerCount + d;
-            if (newCount < 1) newCount = 1; if (newCount > 6) newCount = 6;
-            tempConfig.playerCount = newCount;
-            // Sync array
-            if (tempConfig.playerNames.length < newCount) {
-                for (let i = tempConfig.playerNames.length; i < newCount; i++) tempConfig.playerNames.push(`玩家 ${i + 1}`);
-            } else if (tempConfig.playerNames.length > newCount) {
-                tempConfig.playerNames = tempConfig.playerNames.slice(0, newCount);
-            }
-            renderSettingsUI();
-        }
+        function changePlayerCount(d) { let nc = Math.max(1, Math.min(6, tempConfig.playerCount + d)); tempConfig.playerCount = nc; while (tempConfig.playerNames.length < nc) tempConfig.playerNames.push(`玩家 ${tempConfig.playerNames.length + 1}`); if (tempConfig.playerNames.length > nc) tempConfig.playerNames = tempConfig.playerNames.slice(0, nc); renderSettingsUI(); }
         function applySettings() {
+            // Save AI settings
+            const newKey = document.getElementById('setting-api-key').value.trim();
+            const newModel = document.getElementById('setting-model-name').value.trim();
+            localStorage.setItem('gametree_api_key', newKey);
+            localStorage.setItem('gametree_model_name', newModel || "gemini-2.0-flash-exp");
+            apiKey = newKey;
+            modelName = newModel || "gemini-2.0-flash-exp";
+
             gameConfig = JSON.parse(JSON.stringify(tempConfig));
             updateTreePayoffs(treeData);
             closeSettings();
             renderTree();
         }
-        function updateTreePayoffs(n) {
-            const targetLen = gameConfig.playerCount;
-            if (n.payoffs.length < targetLen) { for (let i = 0; i < targetLen - n.payoffs.length; i++) n.payoffs.push(0); }
-            else if (n.payoffs.length > targetLen) { n.payoffs = n.payoffs.slice(0, targetLen); }
-            if (n.playerIdx >= targetLen) n.playerIdx = 0;
-            n.children.forEach(updateTreePayoffs);
-        }
-
-        // Modals
+        function updateTreePayoffs(n) { const tl = gameConfig.playerCount; if (n.payoffs.length < tl) while (n.payoffs.length < tl) n.payoffs.push(0); else if (n.payoffs.length > tl) n.payoffs = n.payoffs.slice(0, tl); if (n.playerIdx >= tl) n.playerIdx = 0; n.children.forEach(updateTreePayoffs); }
         function openAiModal() { document.getElementById('ai-modal').classList.add('modal-active'); }
         function closeAiModal() { document.getElementById('ai-modal').classList.remove('modal-active'); }
         function closeAnalysisModal() { document.getElementById('analysis-modal').classList.remove('modal-active'); }
-        function saveGame() { const blob = new Blob([JSON.stringify({ config: gameConfig, tree: treeData })], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `gametree_v3.4.2.json`; a.click(); }
-        function importGame(input) { const reader = new FileReader(); reader.onload = (e) => { const d = JSON.parse(e.target.result); gameConfig = d.config; treeData = restoreNodePrototype(d.tree); solveGame(); }; reader.readAsText(input.files[0]); }
+
+        function saveGame() {
+            const data = { version: "4.0", timestamp: new Date().toISOString(), config: gameConfig, tree: treeData };
+            const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeName = (gameConfig.gameName || "gametree").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.href = url; a.download = `${safeName}_v4.0.json`; a.click();
+        }
+        function importGameFile(input) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const d = JSON.parse(e.target.result);
+                    gameConfig = d.config;
+                    if (!gameConfig.gameName) gameConfig.gameName = "匯入賽局";
+                    treeData = restoreNodePrototype(d.tree);
+                    solveGame();
+                } catch (err) { alert("讀取失敗"); }
+            };
+            reader.readAsText(input.files[0]);
+            // Reset input so same file can be loaded again if needed
+            input.value = '';
+        }
 
         window.addEventListener('resize', drawConnections);
         init();
     </script>
 </body>
+
 </html>
